@@ -1,0 +1,163 @@
+
+body {
+    margin: 0;
+    padding: 0;
+}
+
+.logo {
+    width: 60px;
+    margin-right: 0px;
+}
+
+.container {
+    display: flex;
+    width: 100%;
+
+}
+.left-and-right{
+    display: flex;
+}
+
+.panel {
+    width: 47.5%;
+    height: 86.6vh;    
+    float: left;
+    box-shadow: 5px 6px 12px 4px rgba(0, 0, 0, 0.3); 
+    margin: 15px; 
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.panel.right {
+    float: right;
+}
+
+.non-scroll-content-left{
+    border-bottom: 1px solid #ccc;
+}
+.non-scroll-content-right{
+    border-bottom: 1px solid #ccc;
+    display: flex;
+}
+
+.panel-title {
+    padding: 10px 10px 0px 10px;
+    margin: 0;
+}
+
+.finder-buttons{
+    width: 105px;
+}
+
+.status-container {
+    display: flex;
+    flex-direction: column;
+    align-items: start;
+    justify-content: flex-end;
+    margin-right: 5px;
+}
+
+.text-logo-and-title
+{
+    display: block;
+    width: 98%;
+}
+
+.status-item {
+    display: flex;
+    align-items: start;
+    margin: 10px;
+}
+
+.content {
+    display: flex;
+}
+
+.status-and-spinner {
+    margin-left: 5px;
+    display: inline-block; 
+    vertical-align: middle;
+}
+
+.status-only {
+    margin: 5px;
+    display: inline-block; 
+    vertical-align: middle; 
+}
+
+.spinner-border {
+    vertical-align: middle; 
+}
+
+.common-height {
+    height: 20px;
+    display: flex;
+    align-items: center;
+}
+
+.scrollable-content {
+    flex: 1; 
+    overflow: auto; 
+    max-width: 100%;
+}
+
+.form-group {
+    margin-bottom: 0rem !important;
+}
+
+.logo-and-title{
+    display: flex;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+td {
+    white-space: normal;
+}
+
+th, td {
+    min-width: 100px;
+}
+
+@media screen and (max-width: 600px) {
+    h1{
+        margin-bottom: 0rem!important;
+    }
+    .logo{
+        height: 40px;
+        width: 40px;
+    }
+    .container {
+        width: 98%;
+    }
+    .panel{
+        width: 92.5vw;
+        margin: 10px;
+    }
+    .panel-title {
+        padding: 5px;
+        margin: 0;
+    }
+    .panel.left {
+        height: 40.75vh;  
+    }
+    .panel.right {
+        height: 40.75vh;
+    }    
+    .left-and-right{
+        flex-direction: column;
+    }
+    .custom-spacing .form-group-modal {
+        margin-bottom: 5px; 
+    }
+    .finder-buttons{
+        width: 90px;
+        --bs-btn-padding-y: 0.4rem !important;
+        --bs-btn-padding-x: 0.4rem !important;
+        --bs-btn-font-size: 0.9rem !important;
+    }
+}

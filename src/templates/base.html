@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/x-icon" href="{{url_for('static', filename='logo.png')}}">
+  <link rel="stylesheet" href="{{url_for('static', filename='style.css')}}">
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <!-- Bootstrap JS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.min.js"
+    integrity="sha512-ykZ1QQr0Jy/4ZkvKuqWn4iF3lqPZyij9iRv6sGqLRdTPkY69YX6+7wvVGmsdBbiIfN/8OdsI7HABjvEok6ZopQ=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
+    crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <!-- Socket IO -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.js"
+    integrity="sha512-tE1z+95+lMCGwy+9PnKgUSIeHhvioC9lMlI7rLWU0Ps3XTdjRygLcy4mLuL0JAoK4TLdQEyP0yOl/9dMOqpH/Q=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <title>Lidify</title>
+</head>
+
+<body class="bg-body-secondary bg-gradient">
+  <div class="topBar">
+    <div class="container-fluid bg-dark">
+      <div class="top-bar d-flex justify-content-between align-items-center">
+        <h1 class="title text-center text-light flex-grow-1 ms-5">Lidify</h1>
+        <button class="btn btn-link text-light" id="settings-button" data-bs-toggle="modal"
+          data-bs-target="#config_modal">
+          <i class="fa fa-gear fa-2x"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal fade" id="config_modal" tabindex="-1" role="dialog" aria-labelledby="main_modal" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="main_modal">Configuration</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+
+        </div>
+        <div class="modal-body">
+          <div id="save_message" style="display: none;" class="alert alert-success mt-3">
+            Settings saved successfully.
+          </div>
+          <div class="form-group-modal">
+            <label for="lidarr_address">Lidarr Address:</label>
+            <input type="text" class="form-control" id="lidarr_address" placeholder="Enter Lidarr Address">
+          </div>
+          <div class="form-group-modal my-3">
+            <label for="lidarr_api_key">Lidarr API Key:</label>
+            <input type="text" class="form-control" id="lidarr_api_key" placeholder="Enter Lidarr API Key">
+          </div>
+          <div class="form-group-modal my-3">
+            <label for="root_folder_path">Lidarr Root Folder Path:</label>
+            <input type="text" class="form-control" id="root_folder_path" placeholder="Enter Lidarr Root Folder Path">
+          </div>
+          <div class="form-group-modal my-3">
+            <label for="spotify_client_id">Spotify Client ID:</label>
+            <input type="text" class="form-control" id="spotify_client_id" placeholder="Enter Spotify Client ID">
+          </div>
+          <div class="form-group-modal">
+            <label for="spotify_client_secret">Spotify Client Secret:</label>
+            <input type="text" class="form-control" id="spotify_client_secret"
+              placeholder="Enter Spotify Client Secret">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" id="save_changes_button" class="btn btn-primary">Save changes</button>
+          <i class="fa fa-sun"></i>
+          <div class="form-check form-switch">
+            <input class="form-check-input rounded" type="checkbox" id="theme_switch">
+          </div>
+          <i class="fa fa-moon"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="left-and-right">
+    <!-- Left Panel -->
+    <div class="panel left rounded">
+      <div class="non-scroll-content-left p-1">
+        <div class="logo-and-title m-1">
+          <img src="{{url_for('static', filename='lidarr.svg')}}" alt="Logo" class="logo">
+          <h2 class="panel-title">Lidarr</h2>
+        </div>
+        <div class="content m-1">
+          <button class="btn btn-primary" id="lidarr_get_artists_button">Get Artist List</button>
+          <div class="status-and-spinner d-flex align-items-center">
+            <div id="lidarr_spinner" class="spinner-border spinner-border-sm text-primary" style=" display: none;"
+              role="status">
+              <span class="sr-only">Loading...</span>
+            </div>
+            <div class="status-only">
+              <span id="lidarr_status"></span>
+            </div>
+          </div>
+        </div>
+        <div class="common-height">
+          <div id="lidarr-select-all-container" style=" display: none;">
+            <div class="form-check">
+              <input type="checkbox" class="form-check-input" id="lidarr-select-all">
+              <label class="form-check-label" for="lidarr-select-all">Select All</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="lidarr_item_list" class="scrollable-content p-1 bg-light-subtle">
+      </div>
+    </div>
+
+    <!-- Right Panel -->
+    <div class="panel right rounded">
+      <div class="non-scroll-content-right p-1">
+        <div class="text-logo-and-title">
+          <div class="logo-and-title m-1">
+            <img src="{{url_for('static', filename='spotify.svg')}}" alt="Logo" class="logo">
+            <h2 class="panel-title">Spotify Similar Artists</h2>
+          </div>
+
+          <div class="content m-1">
+            <div class="form-group">
+              <div class="input-group">
+                <button class="btn btn-success finder-buttons rounded-start" id="finder_button">Find Artists</button>
+                <button class="btn btn-primary finder-buttons" id="add_button">Add Artists</button>
+                <button class="btn btn-warning finder-buttons" id="stop_button">Stop</button>
+                <button class="btn btn-danger finder-buttons rounded-end" id="reset_button">Reset</button>
+                <div class="status-and-spinner d-flex align-items-center ms-1">
+                  <div id="finder_spinner" class="spinner-border spinner-border-sm text-primary" style=" display: none;"
+                    role="status">
+                    <span class="sr-only">Loading...</span>
+                  </div>
+                  <div class="status-only">
+                    <span id="finder_status"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="common-height">
+            <div id="finder-select-all-container" style=" display: none;">
+              <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="finder-select-all">
+                <label class="form-check-label" for="finder-select-all">Select All</label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div id="finder_item_list" class="scrollable-content p-1 bg-light-subtle">
+        <table id="finder_table">
+          <thead>
+          </thead>
+          <tbody>
+            <!-- Data will be populated dynamically using JavaScript -->
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+  <script src="{{url_for('static',filename='script.js')}}"></script>
+</body>
+
+</html>

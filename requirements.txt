@@ -1,0 +1,10 @@
+gunicorn
+gevent
+gevent-websocket
+flask
+flask_socketio
+requests
+spotipy
+musicbrainzngs
+thefuzz
+Unidecode
