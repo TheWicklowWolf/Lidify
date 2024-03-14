@@ -41,10 +41,10 @@ class DataHandler:
         self.settings_config_file = os.path.join(self.config_folder, "settings_config.json")
         if os.path.exists(self.settings_config_file):
             self.load_settings_from_file()
+        self.lidarr_items = []
         self.reset()
 
     def reset(self):
-        self.lidarr_items = []
         self.similar_artists = []
         self.stop_event = threading.Event()
 
@@ -130,14 +130,21 @@ class DataHandler:
                             break
                     else:
                         if self.fallback_to_top_result == True:
-                            search_id = item[0]["id"]
+                            search_id = items[0]["id"]
 
                     if search_id:
                         related_artists = sp.artist_related_artists(search_id)
-                        new_artists = [artist["name"] for artist in related_artists["artists"] if unidecode(artist["name"]).lower() not in self.cleaned_lidarr_items]
-                        self.raw_new_artists.extend(new_artists)
+                        for artist in related_artists["artists"]:
+                            cleaned_artist = unidecode(artist["name"]).lower()
+                            if cleaned_artist not in self.cleaned_lidarr_items and not any(artist["name"] == item["Name"] for item in self.raw_new_artists):
+                                exclusive_artist = {
+                                    "Name": artist["name"],
+                                    "Genre": artist.get("genres", [])[0].title() if artist.get("genres") else "Unknown Genre",
+                                    "Status": "",
+                                }
+                                self.raw_new_artists.append(exclusive_artist)
 
-            self.similar_artists.extend([{"Name": artist, "Status": ""} for artist in set(self.raw_new_artists)])
+            self.similar_artists.extend(self.raw_new_artists)
             self.similar_artists.sort(key=lambda x: x["Name"].lower())
             ret = {
                 "Status": "Stopped" if self.stop_event.is_set() else "Success",
@@ -181,7 +188,7 @@ class DataHandler:
 
                     if response.status_code == 201:
                         self.lidify_logger.info(f"Artist '{artist}' added successfully to Lidarr.")
-                        status = "Added to Lidarr"
+                        status = "Added"
                         self.lidarr_items.append(artist)
                         self.cleaned_lidarr_items.append(unidecode(artist).lower())
                     else:
@@ -293,6 +300,9 @@ def add_artists(data):
 
 @socketio.on("connect")
 def connection():
+    if data_handler.lidarr_items:
+        ret = {"Status": "Success", "Data": data_handler.lidarr_items}
+        socketio.emit("lidarr_status", ret)
     if data_handler.similar_artists:
         ret = {"Status": "Success", "Data": data_handler.similar_artists, "Text": "Reloaded"}
         socketio.emit("new_artists_refresh", ret)
