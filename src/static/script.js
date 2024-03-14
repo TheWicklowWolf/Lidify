@@ -134,6 +134,7 @@ socket.on("new_artists_refresh", (response) => {
 
             var checkboxCell = row.insertCell();
             checkboxCell.className = "form-check";
+            var tdGenre = row.insertCell();
             var tdStatus = row.insertCell();
 
             var input = document.createElement("input");
@@ -155,6 +156,7 @@ socket.on("new_artists_refresh", (response) => {
             checkboxCell.appendChild(input);
             checkboxCell.appendChild(label);
 
+            tdGenre.textContent = item.Genre;
             tdStatus.textContent = item.Status;
         });
         finder_table.style.display = 'table';
