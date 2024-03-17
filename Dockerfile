@@ -10,6 +10,6 @@ WORKDIR /lidify
 RUN chown -R $UID:$GID /lidify
 # Install requirements and run code as general_user
 RUN pip install --no-cache-dir -r requirements.txt
-EXPOSE 5000
+EXPOSE 6868
 USER general_user
 CMD ["gunicorn", "src.Lidify:app", "-c", "gunicorn_config.py"]
