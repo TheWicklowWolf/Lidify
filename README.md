@@ -21,7 +21,7 @@ services:
       - /path/to/config:/lidify/config
       - /etc/localtime:/etc/localtime:ro
     ports:
-      - 5000:5000
+      - 6868:6868
     restart: unless-stopped
 ```
 
