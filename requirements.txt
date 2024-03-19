@@ -8,3 +8,4 @@ spotipy
 musicbrainzngs
 thefuzz
 Unidecode
+pylast

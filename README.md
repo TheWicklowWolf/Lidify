@@ -27,17 +27,25 @@ services:
 
 ## Configuration via environment variables
 
-Certain values can be set via environment variables.
+Certain values can be set via environment variables:
 
-* __fallback_to_top_result__: use top result if no match is found. Defaults to `False`.
-* __lidarr_api_timeout__: seconds for Lidarr API call timeout. Defaults to `120`.
-* __quality_profile_id__: qualityProfileId in Lidarr. Defaults to `1`.
-* __metadata_profile_id__: metadataProfileId in Lidarr. Defaults to `1`
-* __search_for_missing_albums__: start seaching for albums when adding artists in Lidarr. Defaults to `False`
-* __dry_run_adding_to_lidarr__: run without adding artists in Lidarr. Defaults to `False`
-* __app_name__: app name. Defaults to `Random Letters`.
-* __app_rev__: app rev. Defaults to `Random Numbers`.
-* __app_url__: app url. Defaults to `Random URL`.
+* __lidarr_address__: The URL for Lidarr. Defaults to `http://192.168.1.2:8686`.
+* __lidarr_api_key__: The API key for Lidarr. Defaults to ``.
+* __root_folder_path__: The root folder path for music. Defaults to `/data/media/music/`.
+* __spotify_client_id__: The Client ID for Spotify. Defaults to ``.
+* __spotify_client_secret__: The Client Secret for Spotify. Defaults to ``.
+* __fallback_to_top_result__: Whether to use the top result if no match is found. Defaults to `False`.
+* __lidarr_api_timeout__: Timeout duration for Lidarr API calls. Defaults to `120`.
+* __quality_profile_id__: Quality profile ID in Lidarr. Defaults to `1`.
+* __metadata_profile_id__: Metadata profile ID in Lidarr. Defaults to `1`
+* __search_for_missing_albums__: Whether to start searching for albums when adding artists. Defaults to `False`
+* __dry_run_adding_to_lidarr__: Whether to run without adding artists in Lidarr. Defaults to `False`
+* __app_name__: Name of the application. Defaults to `Lidify`.
+* __app_rev__: Application revision. Defaults to `0.01`.
+* __app_url__: URL of the application. Defaults to `Random URL`.
+* __last_fm_api_key__: The API key for LastFM. Defaults to ``.
+* __last_fm_api_secret__: The API secret for LastFM. Defaults to ``.
+* __mode__: Mode for discovery (Spotify or LastFM). Defaults to `Spotify`.
 
 ---
 

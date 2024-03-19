@@ -12,6 +12,7 @@ from spotipy.oauth2 import SpotifyClientCredentials
 import musicbrainzngs
 from thefuzz import fuzz
 from unidecode import unidecode
+import pylast
 
 
 class DataHandler:
@@ -20,208 +21,326 @@ class DataHandler:
         self.lidify_logger = logging.getLogger()
         self.musicbrainzngs_logger = logging.getLogger("musicbrainzngs")
         self.musicbrainzngs_logger.setLevel("WARNING")
-        self.lidarr_address = os.environ.get("lidarr_address", "http://192.168.1.2:8686")
-        self.lidarr_api_key = os.environ.get("lidarr_api_key", "")
-        self.root_folder_path = os.environ.get("root_folder_path", "/data/media/music/")
-        self.spotify_client_id = os.environ.get("spotify_client_id", "")
-        self.spotify_client_secret = os.environ.get("spotify_client_secret", "")
-        self.fallback_to_top_result = os.environ.get("fallback_to_top_result", False)
-        self.lidarr_api_timeout = os.environ.get("lidarr_api_timeout", 120)
-        self.quality_profile_id = os.environ.get("quality_profile_id", 1)
-        self.metadata_profile_id = os.environ.get("metadata_profile_id", 1)
-        self.search_for_missing_albums = os.environ.get("search_for_missing_albums", False)
-        self.dry_run_adding_to_lidarr = os.environ.get("dry_run_adding_to_lidarr", False)
-        self.app_name = os.environ.get("app_name", "".join(random.choices(string.ascii_letters, k=10)))
-        self.app_rev = os.environ.get("app_rev", "".join(random.choices(string.digits, k=3)))
-        self.app_url = os.environ.get("app_url", "http://" + "".join(random.choices(string.ascii_lowercase, k=10)) + ".com")
-
+        self.pylast_logger = logging.getLogger("pylast")
+        self.pylast_logger.setLevel("WARNING")
+        self.search_in_progress_flag = False
+        self.new_found_artists_counter = 0
+        self.clients_connected_counter = 0
         self.config_folder = "config"
+        self.similar_artists = []
+        self.lidarr_items = []
+        self.cleaned_lidarr_items = []
+        self.stop_event = threading.Event()
+        self.stop_event.set()
         if not os.path.exists(self.config_folder):
             os.makedirs(self.config_folder)
-        self.settings_config_file = os.path.join(self.config_folder, "settings_config.json")
-        if os.path.exists(self.settings_config_file):
-            self.load_settings_from_file()
-        self.lidarr_items = []
-        self.reset()
+        self.load_environ_or_config_settings()
 
-    def reset(self):
-        self.similar_artists = []
-        self.stop_event = threading.Event()
+    def load_environ_or_config_settings(self):
+        # Defaults
+        default_settings = {
+            "lidarr_address": "http://192.168.1.2:8686",
+            "lidarr_api_key": "",
+            "root_folder_path": "/data/media/music/",
+            "spotify_client_id": "",
+            "spotify_client_secret": "",
+            "fallback_to_top_result": False,
+            "lidarr_api_timeout": 120.0,
+            "quality_profile_id": 1,
+            "metadata_profile_id": 1,
+            "search_for_missing_albums": False,
+            "dry_run_adding_to_lidarr": False,
+            "app_name": "Lidify",
+            "app_rev": "0.01",
+            "app_url": "http://" + "".join(random.choices(string.ascii_lowercase, k=10)) + ".com",
+            "last_fm_api_key": "",
+            "last_fm_api_secret": "",
+            "mode": "Spotify",
+        }
 
-    def load_settings_from_file(self):
+        # Load settings from environmental variables (which take precedence) over the configuration file.
+        self.lidarr_address = os.environ.get("lidarr_address", "")
+        self.lidarr_api_key = os.environ.get("lidarr_api_key", "")
+        self.root_folder_path = os.environ.get("root_folder_path", "")
+        self.spotify_client_id = os.environ.get("spotify_client_id", "")
+        self.spotify_client_secret = os.environ.get("spotify_client_secret", "")
+        self.fallback_to_top_result = os.environ.get("fallback_to_top_result", "")
+        self.lidarr_api_timeout = os.environ.get("lidarr_api_timeout", "")
+        self.quality_profile_id = os.environ.get("quality_profile_id", "")
+        self.metadata_profile_id = os.environ.get("metadata_profile_id", "")
+        self.search_for_missing_albums = os.environ.get("search_for_missing_albums", "")
+        self.dry_run_adding_to_lidarr = os.environ.get("dry_run_adding_to_lidarr", "")
+        self.app_name = os.environ.get("app_name", "")
+        self.app_rev = os.environ.get("app_rev", "")
+        self.app_url = os.environ.get("app_url", "")
+        self.last_fm_api_key = os.environ.get("last_fm_api_key", "")
+        self.last_fm_api_secret = os.environ.get("last_fm_api_secret", "")
+        self.mode = os.environ.get("mode", "")
+
+        # Load variables from the configuration file if not set by environmental variables.
         try:
-            with open(self.settings_config_file, "r") as json_file:
-                ret = json.load(json_file)
-            self.lidarr_address = ret["lidarr_address"]
-            self.lidarr_api_key = ret["lidarr_api_key"]
-            self.root_folder_path = ret["root_folder_path"]
-            self.spotify_client_id = ret["spotify_client_id"]
-            self.spotify_client_secret = ret["spotify_client_secret"]
-            self.fallback_to_top_result = ret["fallback_to_top_result"]
-            self.lidarr_api_timeout = float(ret["lidarr_api_timeout"])
+            self.settings_config_file = os.path.join(self.config_folder, "settings_config.json")
+            if os.path.exists(self.settings_config_file):
+                self.lidify_logger.info(f"Loading Config via file")
+                with open(self.settings_config_file, "r") as json_file:
+                    ret = json.load(json_file)
+                    for key in ret:
+                        if getattr(self, key) == "":
+                            setattr(self, key, ret[key])
+        except Exception as e:
+            self.lidify_logger.error(f"Error Loading Config: {str(e)}")
+
+        # Load defaults if not set by an environmental variable or configuration file.
+        for key, value in default_settings.items():
+            if getattr(self, key) == "":
+                setattr(self, key, value)
+
+        # Save config.
+        self.save_config_to_file()
+
+    def connection(self):
+        if self.similar_artists:
+            if self.clients_connected_counter == 0:
+                if len(self.similar_artists) > 10:
+                    self.similar_artists = random.sample(self.similar_artists, 10)
+                else:
+                    self.lidify_logger.info(f"Shuffling Artists")
+                    random.shuffle(self.similar_artists)
+                self.raw_new_artists = []
+            socketio.emit("more_artists_loaded", self.similar_artists)
+
+        self.clients_connected_counter += 1
+
+    def disconnection(self):
+        self.clients_connected_counter = max(0, self.clients_connected_counter - 1)
+
+    def start(self, data):
+        try:
+            socketio.emit("clear")
+            self.new_found_artists_counter = 1
+            self.raw_new_artists = []
+            self.artists_to_use_in_search = []
+            self.similar_artists = []
+
+            for item in self.lidarr_items:
+                item_name = item["name"]
+                if item_name in data:
+                    item["checked"] = True
+                    self.artists_to_use_in_search.append(item_name)
+                else:
+                    item["checked"] = False
+
+            if self.artists_to_use_in_search:
+                self.stop_event.clear()
+            else:
+                self.stop_event.set()
+                raise Exception("No Lidarr Artists Selected")
 
         except Exception as e:
-            self.lidify_logger.error("Error Loading Config: " + str(e))
+            self.lidify_logger.error(f"Statup Error: {str(e)}")
+            self.stop_event.set()
+            ret = {"Status": "Error", "Code": str(e), "Data": self.lidarr_items, "Running": not self.stop_event.is_set()}
+            socketio.emit("lidarr_sidebar_update", ret)
 
-    def save_config_to_file(self):
-        try:
-            with open(self.settings_config_file, "w") as json_file:
-                json.dump(
-                    {
-                        "lidarr_address": self.lidarr_address,
-                        "lidarr_api_key": self.lidarr_api_key,
-                        "root_folder_path": self.root_folder_path,
-                        "spotify_client_id": self.spotify_client_id,
-                        "spotify_client_secret": self.spotify_client_secret,
-                        "fallback_to_top_result": self.fallback_to_top_result,
-                        "lidarr_api_timeout": float(self.lidarr_api_timeout),
-                    },
-                    json_file,
-                    indent=4,
-                )
-
-        except Exception as e:
-            self.lidify_logger.error("Error Saving Config: " + str(e))
+        else:
+            self.find_similar_artists()
 
     def get_artists_from_lidarr(self):
         try:
-            self.stop_event.clear()
+            self.lidify_logger.info(f"Getting Artists from Lidarr")
             self.lidarr_items = []
             endpoint = f"{self.lidarr_address}/api/v1/artist"
             headers = {"X-Api-Key": self.lidarr_api_key}
             response = requests.get(endpoint, headers=headers, timeout=self.lidarr_api_timeout)
+
             if response.status_code == 200:
                 self.full_lidarr_artist_list = response.json()
-                self.lidarr_items = [unidecode(artist["artistName"], replace_str=" ") for artist in self.full_lidarr_artist_list]
-                self.lidarr_items.sort(key=str.lower)
-                self.cleaned_lidarr_items = [item.lower() for item in self.lidarr_items]
-                ret = {"Status": "Success", "Data": self.lidarr_items}
+                self.lidarr_items = [{"name": unidecode(artist["artistName"], replace_str=" "), "checked": False} for artist in self.full_lidarr_artist_list]
+                self.lidarr_items.sort(key=lambda x: x["name"].lower())
+                self.cleaned_lidarr_items = [item["name"].lower() for item in self.lidarr_items]
+                status = "Success"
+                data = self.lidarr_items
             else:
-                ret = {"Status": "Error", "Code": response.status_code, "Data": response.text}
+                status = "Error"
+                data = response.text
+
+            ret = {"Status": status, "Code": response.status_code if status == "Error" else None, "Data": data, "Running": not self.stop_event.is_set()}
 
         except Exception as e:
-            self.lidify_logger.error(str(e))
-            ret = {"Status": "Error", "Code": 500, "Data": str(e)}
+            self.lidify_logger.error(f"Getting Artist Error: {str(e)}")
+            ret = {"Status": "Error", "Code": 500, "Data": str(e), "Running": not self.stop_event.is_set()}
 
         finally:
-            if self.stop_event.is_set():
-                ret = {"Status": "Stopped", "Code": "", "Data": self.lidarr_items}
-            socketio.emit("lidarr_status", ret)
+            socketio.emit("lidarr_sidebar_update", ret)
 
-    def find_similar_artists(self, data):
-        try:
-            self.stop_event.clear()
-            self.similar_artists = []
-            self.raw_new_artists = []
-            sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id=self.spotify_client_id, client_secret=self.spotify_client_secret))
-            for artist_name in data["Data"]:
-                if self.stop_event.is_set():
-                    break
-                else:
-                    search_id = None
-                    results = sp.search(q=artist_name, type="artist")
-                    items = results.get("artists", {}).get("items", [])
+    def find_similar_artists(self):
+        if self.stop_event.is_set() or self.search_in_progress_flag:
+            return
+        elif self.mode == "Spotify" and self.new_found_artists_counter > 0:
+            try:
+                self.lidify_logger.info(f"Searching for new artists via {self.mode}")
+                self.new_found_artists_counter = 0
+                self.search_in_progress_flag = True
+                random_artists = random.sample(self.artists_to_use_in_search, min(5, len(self.artists_to_use_in_search)))
 
-                    for item in items:
-                        if self.stop_event.is_set():
-                            break
-                        elif fuzz.ratio(artist_name.lower(), item["name"].lower()) > 90:
-                            search_id = item["id"]
-                            break
+                sp = spotipy.Spotify(retries=0, auth_manager=SpotifyClientCredentials(client_id=self.spotify_client_id, client_secret=self.spotify_client_secret))
+
+                for artist_name in random_artists:
+                    if self.stop_event.is_set():
+                        break
                     else:
-                        if self.fallback_to_top_result == True:
-                            search_id = items[0]["id"]
-
-                    if search_id:
+                        search_id = None
+                        results = sp.search(q=artist_name, type="artist")
+                        items = results.get("artists", {}).get("items", [])
+                        search_id = items[0]["id"]
                         related_artists = sp.artist_related_artists(search_id)
                         for artist in related_artists["artists"]:
                             cleaned_artist = unidecode(artist["name"]).lower()
                             if cleaned_artist not in self.cleaned_lidarr_items and not any(artist["name"] == item["Name"] for item in self.raw_new_artists):
+                                genres = ", ".join([genre.title() for genre in artist.get("genres", [])]) if artist.get("genres") else "Unknown Genre"
+                                followers = self.format_numbers(artist.get("followers", {}).get("total", 0))
+                                pop = artist.get("popularity", "0")
+                                img_link = artist.get("images")[0]["url"] if artist.get("images") else None
                                 exclusive_artist = {
                                     "Name": artist["name"],
-                                    "Genre": artist.get("genres", [])[0].title() if artist.get("genres") else "Unknown Genre",
+                                    "Genre": genres,
                                     "Status": "",
+                                    "Img_Link": img_link,
+                                    "Popularity": f"Popularity: {pop}/100",
+                                    "Followers": f"Followers: {followers}",
                                 }
                                 self.raw_new_artists.append(exclusive_artist)
+                                socketio.emit("more_artists_loaded", [exclusive_artist])
+                                self.new_found_artists_counter += 1
 
-            self.similar_artists.extend(self.raw_new_artists)
-            self.similar_artists.sort(key=lambda x: x["Name"].lower())
-            ret = {
-                "Status": "Stopped" if self.stop_event.is_set() else "Success",
-                "Data": self.similar_artists,
-                "Text": "Stopped" if self.stop_event.is_set() else "Spotify List Updated",
-            }
-
-        except Exception as e:
-            self.lidify_logger.error(str(e))
-            ret = {"Status": "Error", "Code": 500, "Data": str(e), "Text": "Error Searching Spotify"}
-
-        finally:
-            socketio.emit("new_artists_refresh", ret)
-
-    def add_artists(self, data):
-        try:
-            self.stop_event.clear()
-            musicbrainzngs.set_useragent(self.app_name, self.app_rev, self.app_url)
-            for artist in data["Data"]:
-                if self.stop_event.is_set():
-                    break
-                mbid = self.get_mbid_from_musicbrainz(artist)
-                if mbid:
-                    lidarr_url = f"{self.lidarr_address}/api/v1/artist"
-                    headers = {"X-Api-Key": self.lidarr_api_key}
-                    payload = {
-                        "ArtistName": artist,
-                        "qualityProfileId": self.quality_profile_id,
-                        "metadataProfileId": self.metadata_profile_id,
-                        "path": os.path.join(self.root_folder_path, artist, ""),
-                        "rootFolderPath": self.root_folder_path,
-                        "foreignArtistId": mbid,
-                        "monitored": True,
-                        "addOptions": {"searchForMissingAlbums": self.search_for_missing_albums},
-                    }
-                    if self.dry_run_adding_to_lidarr:
-                        response = requests.Response()
-                        response.status_code = 201
-                    else:
-                        response = requests.post(lidarr_url, headers=headers, json=payload)
-
-                    if response.status_code == 201:
-                        self.lidify_logger.info(f"Artist '{artist}' added successfully to Lidarr.")
-                        status = "Added"
-                        self.lidarr_items.append(artist)
-                        self.cleaned_lidarr_items.append(unidecode(artist).lower())
-                    else:
-                        self.lidify_logger.error(f"Failed to add artist '{artist}' to Lidarr.")
-                        error_data = json.loads(response.content)
-                        error_messages = json.dumps(error_data[0])
-                        self.lidify_logger.error(error_messages)
-                        if "already been added" or "configured for an existing artist" in error_messages:
-                            status = "Already in Lidarr"
-                            self.lidify_logger.info(f"Artist '{artist}' is already in Lidarr.")
-                        else:
-                            status = "Failed to Add"
-
+                if self.new_found_artists_counter == 0:
+                    self.lidify_logger.info("Search Exhausted - Try selecting more artists from existing Lidarr library")
+                    socketio.emit("new_toast_msg", {"title": "Search Exhausted", "message": "Try selecting more artists from existing Lidarr library"})
                 else:
-                    status = "No Matching Artist"
+                    self.similar_artists.extend(self.raw_new_artists)
 
-                for item in self.similar_artists:
-                    if item["Name"] == artist:
-                        item["Status"] = status
+            except Exception as e:
+                self.lidify_logger.error(f"Spotify Error: {str(e)}")
+
+            finally:
+                self.search_in_progress_flag = False
+
+        elif self.mode == "LastFM" and self.new_found_artists_counter > 0:
+            try:
+                self.lidify_logger.info(f"Searching for new artists via {self.mode}")
+                self.new_found_artists_counter = 0
+                self.search_in_progress_flag = True
+                random_artists = random.sample(self.artists_to_use_in_search, min(5, len(self.artists_to_use_in_search)))
+
+                lfm = pylast.LastFMNetwork(api_key=self.last_fm_api_key, api_secret=self.last_fm_api_secret)
+                for artist_name in random_artists:
+                    if self.stop_event.is_set():
                         break
+                    else:
+                        search_id = None
+                        artist = lfm.get_artist(artist_name)
+                        related_artists = artist.get_similar()
+                        random_related_artists = random.sample(related_artists, min(10, len(related_artists)))
+                        for artist in random_related_artists:
+                            cleaned_artist = unidecode(artist.item.name).lower()
+                            if cleaned_artist not in self.cleaned_lidarr_items and not any(artist.item.name == item["Name"] for item in self.raw_new_artists):
+                                artist_obj = lfm.get_artist(artist.item.name)
+                                genres = ", ".join([tag.item.get_name().title() for tag in artist_obj.get_top_tags()[:5]]) or "Unknown Genre"
+                                listeners = artist_obj.get_listener_count() or 0
+                                play_count = artist_obj.get_playcount() or 0
+                                try:
+                                    img_link = None
+                                    endpoint = "https://api.deezer.com/search/artist"
+                                    params = {"q": artist.item.name}
+                                    response = requests.get(endpoint, params=params)
+                                    data = response.json()
+                                    if "data" in data and data["data"]:
+                                        artist_info = data["data"][0]
+                                        img_link = artist_info.get("picture_xl", artist_info.get("picture_large", artist_info.get("picture_medium", artist_info.get("picture", ""))))
 
-            ret = {
-                "Status": "Stopped" if self.stop_event.is_set() else "Success",
-                "Data": self.similar_artists,
-                "Text": "Stopped" if self.stop_event.is_set() else "Lidarr Update Complete",
-            }
+                                except Exception as e:
+                                    self.lidify_logger.error(f"Deezer Error: {str(e)}")
+
+                                exclusive_artist = {
+                                    "Name": artist.item.name,
+                                    "Genre": genres,
+                                    "Status": "",
+                                    "Img_Link": img_link if img_link else "https://via.placeholder.com/300x200",
+                                    "Popularity": f"Play Count: {self.format_numbers(play_count)}",
+                                    "Followers": f"Listeners: {self.format_numbers(listeners)}",
+                                }
+                                self.raw_new_artists.append(exclusive_artist)
+                                socketio.emit("more_artists_loaded", [exclusive_artist])
+                                self.new_found_artists_counter += 1
+
+                if self.new_found_artists_counter == 0:
+                    self.lidify_logger.info("Search Exhausted - Try selecting more artists from existing Lidarr library")
+                    socketio.emit("new_toast_msg", {"title": "Search Exhausted", "message": "Try selecting more artists from existing Lidarr library"})
+                else:
+                    self.similar_artists.extend(self.raw_new_artists)
+
+            except Exception as e:
+                self.lidify_logger.error(f"LastFM Error: {str(e)}")
+
+            finally:
+                self.search_in_progress_flag = False
+
+        elif self.new_found_artists_counter == 0:
+            self.lidify_logger.info("Search Exhausted - Try selecting more artists from existing Lidarr library")
+            socketio.emit("new_toast_msg", {"title": "Search Exhausted", "message": "Try selecting more artists from existing Lidarr library"})
+
+    def add_artists(self, artist_name):
+        try:
+            musicbrainzngs.set_useragent(self.app_name, self.app_rev, self.app_url)
+            mbid = self.get_mbid_from_musicbrainz(artist_name)
+            if mbid:
+                lidarr_url = f"{self.lidarr_address}/api/v1/artist"
+                headers = {"X-Api-Key": self.lidarr_api_key}
+                payload = {
+                    "ArtistName": artist_name,
+                    "qualityProfileId": self.quality_profile_id,
+                    "metadataProfileId": self.metadata_profile_id,
+                    "path": os.path.join(self.root_folder_path, artist_name, ""),
+                    "rootFolderPath": self.root_folder_path,
+                    "foreignArtistId": mbid,
+                    "monitored": True,
+                    "addOptions": {"searchForMissingAlbums": self.search_for_missing_albums},
+                }
+                if self.dry_run_adding_to_lidarr:
+                    response = requests.Response()
+                    response.status_code = 201
+                else:
+                    response = requests.post(lidarr_url, headers=headers, json=payload)
+
+                if response.status_code == 201:
+                    self.lidify_logger.info(f"Artist '{artist_name}' added successfully to Lidarr.")
+                    status = "Added"
+                    self.lidarr_items.append({"name": artist_name, "checked": False})
+                    self.cleaned_lidarr_items.append(unidecode(artist_name).lower())
+                else:
+                    self.lidify_logger.error(f"Failed to add artist '{artist_name}' to Lidarr.")
+                    error_data = json.loads(response.content)
+                    error_messages = json.dumps(error_data[0])
+                    self.lidify_logger.error(error_messages)
+                    if "already been added" or "configured for an existing artist" in error_messages:
+                        status = "Already in Lidarr"
+                        self.lidify_logger.info(f"Artist '{artist_name}' is already in Lidarr.")
+                    else:
+                        status = "Failed to Add"
+
+            else:
+                status = "Failed to Add"
+                self.lidify_logger.info(f"No Matching Artist: '{artist_name}' found in MusicBrainz.")
+                socketio.emit("new_toast_msg", {"title": "Failed to add Artist", "message": f"No Matching Artist: '{artist_name}' found in MusicBrainz."})
+
+            for item in self.similar_artists:
+                if item["Name"] == artist_name:
+                    item["Status"] = status
+                    socketio.emit("refresh_artist", item)
+                    break
 
         except Exception as e:
-            self.lidify_logger.error(str(e))
-            ret = {"Status": "Error", "Code": 500, "Data": str(e), "Text": "Error Adding Artists"}
-
-        finally:
-            socketio.emit("new_artists_refresh", ret)
+            self.lidify_logger.error(f"Adding Artist Error: {str(e)}")
 
     def get_mbid_from_musicbrainz(self, artist_name):
         result = musicbrainzngs.search_artists(artist=artist_name)
@@ -265,6 +384,44 @@ class DataHandler:
         except Exception as e:
             self.lidify_logger.error(f"Failed to update settings: {str(e)}")
 
+    def format_numbers(self, count):
+        if count >= 1000000:
+            return f"{count / 1000000:.1f}M"
+        elif count >= 1000:
+            return f"{count / 1000:.1f}K"
+        else:
+            return count
+
+    def save_config_to_file(self):
+        try:
+            with open(self.settings_config_file, "w") as json_file:
+                json.dump(
+                    {
+                        "lidarr_address": self.lidarr_address,
+                        "lidarr_api_key": self.lidarr_api_key,
+                        "root_folder_path": self.root_folder_path,
+                        "spotify_client_id": self.spotify_client_id,
+                        "spotify_client_secret": self.spotify_client_secret,
+                        "fallback_to_top_result": self.fallback_to_top_result,
+                        "lidarr_api_timeout": float(self.lidarr_api_timeout),
+                        "quality_profile_id": self.quality_profile_id,
+                        "metadata_profile_id": self.metadata_profile_id,
+                        "search_for_missing_albums": self.search_for_missing_albums,
+                        "dry_run_adding_to_lidarr": self.dry_run_adding_to_lidarr,
+                        "app_name": self.app_name,
+                        "app_rev": self.app_rev,
+                        "app_url": self.app_url,
+                        "last_fm_api_key": self.last_fm_api_key,
+                        "last_fm_api_secret": self.last_fm_api_secret,
+                        "mode": self.mode,
+                    },
+                    json_file,
+                    indent=4,
+                )
+
+        except Exception as e:
+            self.lidify_logger.error(f"Error Saving Config: {str(e)}")
+
 
 app = Flask(__name__)
 app.secret_key = "secret_key"
@@ -277,8 +434,15 @@ def home():
     return render_template("base.html")
 
 
-@socketio.on("getLidarrArtists")
-def getLidarrArtists():
+@socketio.on("side_bar_opened")
+def side_bar_opened():
+    if data_handler.lidarr_items:
+        ret = {"Status": "Success", "Data": data_handler.lidarr_items, "Running": not data_handler.stop_event.is_set()}
+        socketio.emit("lidarr_sidebar_update", ret)
+
+
+@socketio.on("get_lidarr_artists")
+def get_lidarr_artists():
     thread = threading.Thread(target=data_handler.get_artists_from_lidarr, name="Lidarr_Thread")
     thread.daemon = True
     thread.start()
@@ -300,35 +464,40 @@ def add_artists(data):
 
 @socketio.on("connect")
 def connection():
-    if data_handler.lidarr_items:
-        ret = {"Status": "Success", "Data": data_handler.lidarr_items}
-        socketio.emit("lidarr_status", ret)
-    if data_handler.similar_artists:
-        ret = {"Status": "Success", "Data": data_handler.similar_artists, "Text": "Reloaded"}
-        socketio.emit("new_artists_refresh", ret)
+    data_handler.connection()
 
 
-@socketio.on("loadSettings")
-def loadSettings():
+@socketio.on("disconnect")
+def disconnection():
+    data_handler.disconnection()
+
+
+@socketio.on("load_settings")
+def load_settings():
     data_handler.load_settings()
 
 
-@socketio.on("updateSettings")
-def updateSettings(data):
+@socketio.on("update_settings")
+def update_settings(data):
     data_handler.update_settings(data)
     data_handler.save_config_to_file()
 
 
-@socketio.on("stopper")
+@socketio.on("start_req")
+def starter(data):
+    data_handler.start(data)
+
+
+@socketio.on("stop_req")
 def stopper():
     data_handler.stop_event.set()
 
 
-@socketio.on("reset")
-def reset():
-    stopper()
-    data_handler.reset()
-    socketio.emit("reset")
+@socketio.on("load_more_artists")
+def load_more_artists():
+    thread = threading.Thread(target=data_handler.find_similar_artists, name="FindSimilar")
+    thread.daemon = True
+    thread.start()
 
 
 if __name__ == "__main__":
