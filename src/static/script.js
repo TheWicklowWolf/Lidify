@@ -72,7 +72,7 @@ function append_artists(artists) {
             artist_col.querySelector('.artist-img-container').removeChild(artist_col.querySelector('.card-img-top'));
         }
         artist_col.querySelector('.add-to-lidarr-btn').addEventListener('click', function () {
-            add_to_lidarr(artist.Name.replace(/'/g, "\\'"));
+            add_to_lidarr(artist.Name.replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
         });
         artist_col.querySelector('.followers').textContent = artist.Followers;
         artist_col.querySelector('.popularity').textContent = artist.Popularity;
