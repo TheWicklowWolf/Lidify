@@ -1,44 +1,134 @@
-var lidarr_get_artists_button = document.getElementById('lidarr_get_artists_button');
-var lidarr_spinner = document.getElementById('lidarr_spinner');
-var lidarr_status = document.getElementById('lidarr_status');
-var finder_spinner = document.getElementById('finder_spinner');
-var finder_status = document.getElementById('finder_status');
-var finder_button = document.getElementById('finder_button');
-var add_button = document.getElementById('add_button');
-var stop_button = document.getElementById('stop_button');
-var reset_button = document.getElementById('reset_button');
+var return_to_top = document.getElementById("return-to-top");
 
-var lidarr_item_list = document.getElementById("lidarr_item_list");
+var lidarr_get_artists_button = document.getElementById('lidarr-get-artists-button');
+var start_stop_button = document.getElementById('start-stop-button');
+var lidarr_status = document.getElementById('lidarr-status');
+var lidarr_spinner = document.getElementById('lidarr-spinner');
+
+var lidarr_item_list = document.getElementById("lidarr-item-list");
 var lidarr_select_all_checkbox = document.getElementById("lidarr-select-all");
 var lidarr_select_all_container = document.getElementById("lidarr-select-all-container");
 
-var finder_table = document.getElementById('finder_table');
-var finder_select_all_checkbox = document.getElementById("finder-select-all");
-var finder_select_all_container = document.getElementById("finder-select-all-container");
+var config_modal = document.getElementById('config-modal');
+var lidarr_sidebar = document.getElementById('lidarr-sidebar');
 
-var config_modal = document.getElementById('config_modal');
-var save_message = document.getElementById("save_message");
-var save_changes_button = document.getElementById("save_changes_button");
-const lidarr_address = document.getElementById("lidarr_address");
-const lidarr_api_key = document.getElementById("lidarr_api_key");
-const root_folder_path = document.getElementById("root_folder_path");
-const spotify_client_id = document.getElementById("spotify_client_id");
-const spotify_client_secret = document.getElementById("spotify_client_secret");
+var save_message = document.getElementById("save-message");
+var save_changes_button = document.getElementById("save-changes-button");
+const lidarr_address = document.getElementById("lidarr-address");
+const lidarr_api_key = document.getElementById("lidarr-api-key");
+const root_folder_path = document.getElementById("root-folder-path");
+const spotify_client_id = document.getElementById("spotify-client-id");
+const spotify_client_secret = document.getElementById("spotify-client-secret");
 
 var lidarr_items = [];
 var finder_items = [];
 var socket = io();
 
+function load_lidarr_data(response) {
+    var all_checked = true;
+    var every_check_box = document.querySelectorAll('input[name="lidarr-item"]')
+    if (response.Running) {
+        start_stop_button.classList.remove('btn-success');
+        start_stop_button.classList.add('btn-warning');
+        start_stop_button.textContent = "Stop";
+        every_check_box.forEach(item => {
+            item.disabled = true;
+            if (!item.checked) {
+                all_checked = false;
+            }
+        });
+        lidarr_select_all_checkbox.disabled = true;
+        lidarr_get_artists_button.disabled = true;
+    } else {
+        start_stop_button.classList.add('btn-success');
+        start_stop_button.classList.remove('btn-warning');
+        start_stop_button.textContent = "Start";
+        every_check_box.forEach(item => {
+            item.disabled = false;
+            if (!item.checked) {
+                all_checked = false;
+            }
+        });
+        lidarr_select_all_checkbox.disabled = false;
+        lidarr_get_artists_button.disabled = false;
+    }
+    lidarr_select_all_checkbox.checked = all_checked;
+}
+
+function append_artists(artists) {
+    var artist_row = document.getElementById('artist-row');
+    var template = document.getElementById('artist-template');
+
+    artists.forEach(function (artist) {
+        var clone = document.importNode(template.content, true);
+        var artist_col = clone.querySelector('.col-md-4');
+
+        artist_col.querySelector('.card-title').textContent = artist.Name;
+        artist_col.querySelector('.genre').textContent = artist.Genre;
+        if (artist.Img_Link) {
+            artist_col.querySelector('.card-img-top').src = artist.Img_Link;
+            artist_col.querySelector('.card-img-top').alt = artist.Name;
+        } else {
+            artist_col.querySelector('.artist-img-container').removeChild(artist_col.querySelector('.card-img-top'));
+        }
+        artist_col.querySelector('.add-to-lidarr-btn').addEventListener('click', function () {
+            add_to_lidarr(artist.Name.replace(/'/g, "\\'"));
+        });
+        artist_col.querySelector('.followers').textContent = artist.Followers;
+        artist_col.querySelector('.popularity').textContent = artist.Popularity;
+
+        if (artist.Status === "Added" || artist.Status === "Already in Lidarr") {
+            artist_col.querySelector('.card-body').classList.add('status-green');
+            var add_button = artist_col.querySelector('.add-to-lidarr-btn');
+            add_button.classList.remove('btn-primary');
+            add_button.classList.add('btn-secondary');
+            add_button.disabled = true;
+            add_button.textContent = artist.Status;
+        } else if (artist.Status === "Failed to Add") {
+            artist_col.querySelector('.card-body').classList.add('status-red');
+        } else {
+            artist_col.querySelector('.card-body').classList.add('status-blue');
+        }
+
+        artist_row.appendChild(clone);
+    });
+}
+
+function add_to_lidarr(artist_name) {
+    if (socket.connected) {
+        socket.emit('adder', artist_name);
+    }
+    else {
+        show_toast("Connection Lost", "Please reload to continue.");
+    }
+}
+
+function show_toast(header, message) {
+    var toast_container = document.querySelector('.toast-container');
+    var toast_template = document.getElementById('toast-template').cloneNode(true);
+    toast_template.classList.remove('d-none');
+
+    toast_template.querySelector('.toast-header strong').textContent = header;
+    toast_template.querySelector('.toast-body').textContent = message;
+    toast_template.querySelector('.text-muted').textContent = new Date().toLocaleString();;
+
+    toast_container.appendChild(toast_template);
+
+    var toast = new bootstrap.Toast(toast_template);
+    toast.show();
+
+    toast_template.addEventListener('hidden.bs.toast', function () {
+        toast_template.remove();
+    });
+}
+
+return_to_top.addEventListener("click", function () {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+});
+
 lidarr_select_all_checkbox.addEventListener("change", function () {
     var isChecked = this.checked;
-    var checkboxes = document.querySelectorAll('input[name="lidarr_item"]');
-    checkboxes.forEach(function (checkbox) {
-        checkbox.checked = isChecked;
-    });
-});
-finder_select_all_checkbox.addEventListener("change", function () {
-    var isChecked = this.checked;
-    var checkboxes = document.querySelectorAll('input[name="finder_item"]');
+    var checkboxes = document.querySelectorAll('input[name="lidarr-item"]');
     checkboxes.forEach(function (checkbox) {
         checkbox.checked = isChecked;
     });
@@ -46,179 +136,45 @@ finder_select_all_checkbox.addEventListener("change", function () {
 
 lidarr_get_artists_button.addEventListener('click', function () {
     lidarr_get_artists_button.disabled = true;
-    lidarr_spinner.style.display = "inline-flex";
+    lidarr_spinner.classList.remove('d-none');
     lidarr_status.textContent = "Accessing Lidarr API";
     lidarr_item_list.innerHTML = '';
-    socket.emit("getLidarrArtists");
+    socket.emit("get_lidarr_artists");
 });
 
-socket.on("lidarr_status", (response) => {
-    if (response.Status == "Success") {
-        lidarr_get_artists_button.disabled = false;
-        lidarr_status.textContent = "Lidarr List Retrieved";
-        lidarr_spinner.style.display = "none";
-        lidarr_items = response.Data;
-        lidarr_item_list.innerHTML = '';
-        lidarr_select_all_container.style.display = "block";
-        lidarr_select_all_checkbox.checked = false;
-        for (var i = 0; i < lidarr_items.length; i++) {
-            var item = lidarr_items[i];
-
-            var div = document.createElement("div");
-            div.className = "form-check";
-
-            var input = document.createElement("input");
-            input.type = "checkbox";
-            input.className = "form-check-input";
-            input.id = "lidarr_" + i;
-            input.name = "lidarr_item";
-            input.value = item;
-
-            var label = document.createElement("label");
-            label.className = "form-check-label";
-            label.htmlFor = "lidarr_" + i;
-            label.textContent = item;
-
-            input.addEventListener("change", function () {
-                lidarr_select_all_checkbox.checked = false;
-            });
-
-            div.appendChild(input);
-            div.appendChild(label);
-
-            lidarr_item_list.appendChild(div);
+start_stop_button.addEventListener('click', function () {
+    var running_state = start_stop_button.textContent.trim() === "Start" ? true : false;
+    if (running_state) {
+        start_stop_button.classList.remove('btn-success');
+        start_stop_button.classList.add('btn-warning');
+        start_stop_button.textContent = "Stop";
+        var checked_items = Array.from(document.querySelectorAll('input[name="lidarr-item"]:checked'))
+            .map(item => item.value);
+        document.querySelectorAll('input[name="lidarr-item"]').forEach(item => {
+            item.disabled = true;
+        });
+        lidarr_get_artists_button.disabled = true;
+        lidarr_select_all_checkbox.disabled = true;
+        socket.emit("start_req", checked_items);
+        if (checked_items.length > 0) {
+            show_toast("Loading new artists");
         }
-    }
-    else if (response.Status == "Stopped") {
-        lidarr_item_list.innerHTML = '';
-        lidarr_status.textContent = "Stopped"
-        lidarr_select_all_container.style.display = "none";
     }
     else {
-        lidarr_item_list.innerHTML = '';
-        var errorDiv = document.createElement("div");
-        errorDiv.textContent = response.Code + " : " + response.Data;
-        errorDiv.style.wordBreak = "break-all";
-        lidarr_item_list.appendChild(errorDiv);
-        lidarr_status.textContent = "Error Accessing Lidarr";
-    }
-    lidarr_spinner.style.display = "none";
-    lidarr_get_artists_button.disabled = false;
-});
-
-finder_button.addEventListener('click', function () {
-    finder_button.disabled = true;
-    add_button.disabled = true;
-    finder_status.textContent = "";
-    finder_spinner.style.display = "inline-flex";
-    var checkedItems = [];
-    for (var i = 0; i < lidarr_items.length; i++) {
-        var checkbox = document.getElementById("lidarr_" + i);
-        if (checkbox.checked) {
-            checkedItems.push(checkbox.value);
-        }
-    }
-    socket.emit("finder", { "Data": checkedItems });
-});
-
-socket.on("new_artists_refresh", (response) => {
-    if (response.Status != "Error") {
-        finder_status.textContent = response.Text;
-        finder_items = response.Data;
-        finder_table.innerHTML = '';
-        finder_select_all_container.style.display = "block";
-        finder_select_all_checkbox.checked = false;
-
-        finder_items.forEach((item, i) => {
-            var row = finder_table.insertRow();
-
-            var checkboxCell = row.insertCell();
-            checkboxCell.className = "form-check";
-            var tdGenre = row.insertCell();
-            var tdStatus = row.insertCell();
-
-            var input = document.createElement("input");
-            input.type = "checkbox";
-            input.className = "form-check-input";
-            input.id = "finder_" + i;
-            input.name = "finder_item";
-            input.value = item.Name;
-
-            var label = document.createElement("label");
-            label.className = "form-check-label";
-            label.htmlFor = "finder_" + i;
-            label.textContent = item.Name;
-
-            input.addEventListener("change", () => {
-                finder_select_all_checkbox.checked = false;
-            });
-
-            checkboxCell.appendChild(input);
-            checkboxCell.appendChild(label);
-
-            tdGenre.textContent = item.Genre;
-            tdStatus.textContent = item.Status;
+        start_stop_button.classList.add('btn-success');
+        start_stop_button.classList.remove('btn-warning');
+        start_stop_button.textContent = "Start";
+        document.querySelectorAll('input[name="lidarr-item"]').forEach(item => {
+            item.disabled = false;
         });
-        finder_table.style.display = 'table';
-    } else {
-        finder_table.innerHTML = '';
-        var errorDiv = document.createElement("div");
-        errorDiv.textContent = response.Code + " : " + response.Data;
-        errorDiv.style.wordBreak = "break-all";
-        finder_table.appendChild(errorDiv);
-        finder_status.textContent = "Error Accessing Spotify";
+        lidarr_get_artists_button.disabled = false;
+        lidarr_select_all_checkbox.disabled = false;
+        socket.emit("stop_req");
     }
-    finder_spinner.style.display = "none";
-    finder_button.disabled = false;
-    add_button.disabled = false;
-});
-
-socket.on("finder_status", (response) => {
-    if (response.Status == "Success") {
-        finder_spinner.style.display = "none";
-        finder_status.textContent = "";
-    } else {
-        finder_status.textContent = response.Data;
-    }
-});
-
-add_button.addEventListener('click', function () {
-    finder_button.disabled = true;
-    add_button.disabled = true;
-    finder_spinner.style.display = "inline-flex";
-    finder_status.textContent = "Adding Artists...";
-    var checkedItems = [];
-    for (var i = 0; i < finder_items.length; i++) {
-        var checkbox = document.getElementById("finder_" + i);
-        if (checkbox) {
-            if (checkbox.checked) {
-                checkedItems.push(checkbox.value);
-            }
-        }
-    }
-    socket.emit("adder", { "Data": checkedItems });
-});
-
-stop_button.addEventListener('click', function () {
-    socket.emit("stopper");
-});
-
-config_modal.addEventListener('show.bs.modal', function (event) {
-    socket.emit("loadSettings");
-
-    function handleSettingsLoaded(settings) {
-        lidarr_address.value = settings.lidarr_address;
-        lidarr_api_key.value = settings.lidarr_api_key;
-        root_folder_path.value = settings.root_folder_path;
-        spotify_client_id.value = settings.spotify_client_id;
-        spotify_client_secret.value = settings.spotify_client_secret;
-        socket.off("settingsLoaded", handleSettingsLoaded);
-    }
-    socket.on("settingsLoaded", handleSettingsLoaded);
 });
 
 save_changes_button.addEventListener("click", () => {
-    socket.emit("updateSettings", {
+    socket.emit("update_settings", {
         "lidarr_address": lidarr_address.value,
         "lidarr_api_key": lidarr_api_key.value,
         "root_folder_path": root_folder_path.value,
@@ -231,26 +187,141 @@ save_changes_button.addEventListener("click", () => {
     }, 1000);
 });
 
-reset_button.addEventListener('click', function () {
-    socket.emit("reset");
-    finder_table.innerHTML = '';
-    finder_spinner.style.display = "none";
-    finder_status.textContent = "";
-    finder_select_all_container.style.display = "none";
-    finder_button.disabled = false;
-    add_button.disabled = false;
+config_modal.addEventListener('show.bs.modal', function (event) {
+    socket.emit("load_settings");
+
+    function handle_settings_loaded(settings) {
+        lidarr_address.value = settings.lidarr_address;
+        lidarr_api_key.value = settings.lidarr_api_key;
+        root_folder_path.value = settings.root_folder_path;
+        spotify_client_id.value = settings.spotify_client_id;
+        spotify_client_secret.value = settings.spotify_client_secret;
+        socket.off("settingsLoaded", handle_settings_loaded);
+    }
+    socket.on("settingsLoaded", handle_settings_loaded);
 });
 
-const theme_switch = document.getElementById('theme_switch');
-const savedTheme = localStorage.getItem('theme');
-const savedSwitchPosition = localStorage.getItem('switchPosition');
+lidarr_sidebar.addEventListener('show.bs.offcanvas', function (event) {
+    socket.emit("side_bar_opened");
+});
 
-if (savedSwitchPosition) {
-    theme_switch.checked = savedSwitchPosition === 'true';
+window.addEventListener('scroll', function () {
+    if (window.innerHeight + window.scrollY >= document.body.offsetHeight) {
+        socket.emit('load_more_artists');
+    }
+});
+
+window.addEventListener('touchmove', function () {
+    if (window.innerHeight + window.scrollY >= document.body.offsetHeight) {
+        socket.emit('load_more_artists');
+    }
+});
+
+socket.on("lidarr_sidebar_update", (response) => {
+    if (response.Status == "Success") {
+        lidarr_spinner.classList.add('d-none');
+        lidarr_status.textContent = "Lidarr List Retrieved";
+        lidarr_items = response.Data;
+        lidarr_item_list.innerHTML = '';
+        lidarr_select_all_container.classList.remove('d-none');
+
+        for (var i = 0; i < lidarr_items.length; i++) {
+            var item = lidarr_items[i];
+
+            var div = document.createElement("div");
+            div.className = "form-check";
+
+            var input = document.createElement("input");
+            input.type = "checkbox";
+            input.className = "form-check-input";
+            input.id = "lidarr-" + i;
+            input.name = "lidarr-item";
+            input.value = item.name;
+
+            if (item.checked) {
+                input.checked = true;
+            }
+
+            var label = document.createElement("label");
+            label.className = "form-check-label";
+            label.htmlFor = "lidarr-" + i;
+            label.textContent = item.name;
+
+            input.addEventListener("change", function () {
+                lidarr_select_all_checkbox.checked = false;
+            });
+
+            div.appendChild(input);
+            div.appendChild(label);
+
+            lidarr_item_list.appendChild(div);
+        }
+    }
+    else {
+        lidarr_status.textContent = response.Code;
+    }
+    lidarr_get_artists_button.disabled = false;
+    load_lidarr_data(response);
+});
+
+socket.on("refresh_artist", (artist) => {
+    var artist_cards = document.querySelectorAll('.col-md-4.mb-3');
+    artist_cards.forEach(function (card) {
+        var card_body = card.querySelector('.card-body');
+        var card_artist_name = card_body.querySelector('.card-title').textContent.trim();
+
+        if (card_artist_name === artist.Name) {
+            card_body.classList.remove('status-green', 'status-red', 'status-blue');
+
+            var add_button = card_body.querySelector('.add-to-lidarr-btn');
+
+            if (artist.Status === "Added" || artist.Status === "Already in Lidarr") {
+                card_body.classList.add('status-green');
+                add_button.classList.remove('btn-primary');
+                add_button.classList.add('btn-secondary');
+                add_button.disabled = true;
+                add_button.textContent = artist.Status;
+            } else if (artist.Status === "Failed to Add") {
+                card_body.classList.add('status-red');
+            } else {
+                card_body.classList.add('status-blue');
+            }
+            add_button.disabled = (artist.Status === "Added" || artist.Status === "Already in Lidarr");
+            return;
+        }
+    });
+});
+
+socket.on('more_artists_loaded', function (data) {
+    append_artists(data);
+});
+
+socket.on('clear', function () {
+    var artist_row = document.getElementById('artist-row');
+    var artist_cards = artist_row.querySelectorAll('.col-md-4.mb-3');
+    artist_cards.forEach(function (card) {
+        card.remove();
+    });
+});
+
+socket.on("new_toast_msg", function (data) {
+    show_toast(data.title, data.message)
+});
+
+socket.on("disconnect", function () {
+    show_toast("Connection Lost", "Please reconnect to continue.");
+});
+
+const theme_switch = document.getElementById('theme-switch');
+const saved_theme = localStorage.getItem('theme');
+const saved_switch_position = localStorage.getItem('switch-position');
+
+if (saved_switch_position) {
+    theme_switch.checked = saved_switch_position === 'true';
 }
 
-if (savedTheme) {
-    document.documentElement.setAttribute('data-bs-theme', savedTheme);
+if (saved_theme) {
+    document.documentElement.setAttribute('data-bs-theme', saved_theme);
 }
 
 theme_switch.addEventListener('click', () => {
@@ -260,5 +331,5 @@ theme_switch.addEventListener('click', () => {
         document.documentElement.setAttribute('data-bs-theme', 'dark');
     }
     localStorage.setItem('theme', document.documentElement.getAttribute('data-bs-theme'));
-    localStorage.setItem('switchPosition', theme_switch.checked);
+    localStorage.setItem('switch_position', theme_switch.checked);
 });
