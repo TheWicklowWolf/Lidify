@@ -53,7 +53,7 @@ class DataHandler:
             "search_for_missing_albums": False,
             "dry_run_adding_to_lidarr": False,
             "app_name": "Lidify",
-            "app_rev": "0.01",
+            "app_rev": "0.04",
             "app_url": "http://" + "".join(random.choices(string.ascii_lowercase, k=10)) + ".com",
             "last_fm_api_key": "",
             "last_fm_api_secret": "",
