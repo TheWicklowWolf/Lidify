@@ -4,6 +4,7 @@ import os
 import random
 import string
 import threading
+import urllib.parse
 from flask import Flask, render_template
 from flask_socketio import SocketIO
 import requests
@@ -289,8 +290,10 @@ class DataHandler:
             self.lidify_logger.info("Search Exhausted - Try selecting more artists from existing Lidarr library")
             socketio.emit("new_toast_msg", {"title": "Search Exhausted", "message": "Try selecting more artists from existing Lidarr library"})
 
-    def add_artists(self, artist_name):
+    def add_artists(self, raw_artist_name):
         try:
+            artist_name = urllib.parse.unquote(raw_artist_name)
+            artist_folder = artist_name.replace("/", " ")
             musicbrainzngs.set_useragent(self.app_name, self.app_rev, self.app_url)
             mbid = self.get_mbid_from_musicbrainz(artist_name)
             if mbid:
@@ -300,7 +303,7 @@ class DataHandler:
                     "ArtistName": artist_name,
                     "qualityProfileId": self.quality_profile_id,
                     "metadataProfileId": self.metadata_profile_id,
-                    "path": os.path.join(self.root_folder_path, artist_name, ""),
+                    "path": os.path.join(self.root_folder_path, artist_folder, ""),
                     "rootFolderPath": self.root_folder_path,
                     "foreignArtistId": mbid,
                     "monitored": True,
@@ -320,11 +323,17 @@ class DataHandler:
                 else:
                     self.lidify_logger.error(f"Failed to add artist '{artist_name}' to Lidarr.")
                     error_data = json.loads(response.content)
-                    error_messages = json.dumps(error_data[0])
-                    self.lidify_logger.error(error_messages)
-                    if "already been added" or "configured for an existing artist" in error_messages:
+                    error_message = error_data[0].get("errorMessage", "No Error Message Returned") if error_data else "Error Unknown"
+                    self.lidify_logger.error(error_message)
+                    if "already been added" in error_message:
                         status = "Already in Lidarr"
                         self.lidify_logger.info(f"Artist '{artist_name}' is already in Lidarr.")
+                    elif "configured for an existing artist" in error_message:
+                        status = "Already in Lidarr"
+                        self.lidify_logger.info(f"'{artist_folder}' folder already configured for an existing artist.")
+                    elif "Invalid Path" in error_message:
+                        status = "Invalid Path"
+                        self.lidify_logger.info(f"Path: {os.path.join(self.root_folder_path, artist_folder, '')} not valid.")
                     else:
                         status = "Failed to Add"
 
@@ -350,14 +359,16 @@ class DataHandler:
             artists = result["artist-list"]
 
             for artist in artists:
-                if fuzz.ratio(unidecode(artist["name"]).lower(), artist_name.lower()) > 90:
+                match_ratio = fuzz.ratio(artist_name.lower(), artist["name"].lower())
+                decoded_match_ratio = fuzz.ratio(unidecode(artist_name.lower()), unidecode(artist["name"].lower()))
+                if match_ratio > 90 or decoded_match_ratio > 90:
                     mbid = artist["id"]
-                    self.lidify_logger.info(f"Artist '{artist_name}' matched '{artist['name']}' with MBID: {mbid}  Ratio: {fuzz.ratio(artist_name.lower(), artist['name'].lower())}")
+                    self.lidify_logger.info(f"Artist '{artist_name}' matched '{artist['name']}' with MBID: {mbid}  Match Ratio: {max(match_ratio, decoded_match_ratio)}")
                     break
             else:
                 if self.fallback_to_top_result and artists:
                     mbid = artists[0]["id"]
-                    self.lidify_logger.info(f"Artist '{artist_name}' matched '{artists[0]['name']}' with MBID: {mbid}  Ratio: {fuzz.ratio(artist_name.lower(), artists[0]['name'].lower())}")
+                    self.lidify_logger.info(f"Artist '{artist_name}' matched '{artists[0]['name']}' with MBID: {mbid}  Match Ratio: {max(match_ratio, decoded_match_ratio)}")
 
         return mbid
 

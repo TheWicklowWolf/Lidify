@@ -72,7 +72,7 @@ function append_artists(artists) {
             artist_col.querySelector('.artist-img-container').removeChild(artist_col.querySelector('.card-img-top'));
         }
         artist_col.querySelector('.add-to-lidarr-btn').addEventListener('click', function () {
-            add_to_lidarr(artist.Name.replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+            add_to_lidarr(artist.Name);
         });
         artist_col.querySelector('.followers').textContent = artist.Followers;
         artist_col.querySelector('.popularity').textContent = artist.Popularity;
@@ -84,8 +84,13 @@ function append_artists(artists) {
             add_button.classList.add('btn-secondary');
             add_button.disabled = true;
             add_button.textContent = artist.Status;
-        } else if (artist.Status === "Failed to Add") {
+        } else if (artist.Status === "Failed to Add" || artist.Status === "Invalid Path") {
             artist_col.querySelector('.card-body').classList.add('status-red');
+            var add_button = artist_col.querySelector('.add-to-lidarr-btn');
+            add_button.classList.remove('btn-primary');
+            add_button.classList.add('btn-danger');
+            add_button.disabled = true;
+            add_button.textContent = artist.Status;
         } else {
             artist_col.querySelector('.card-body').classList.add('status-blue');
         }
@@ -96,7 +101,7 @@ function append_artists(artists) {
 
 function add_to_lidarr(artist_name) {
     if (socket.connected) {
-        socket.emit('adder', artist_name);
+        socket.emit('adder', encodeURIComponent(artist_name));
     }
     else {
         show_toast("Connection Lost", "Please reload to continue.");
@@ -281,12 +286,16 @@ socket.on("refresh_artist", (artist) => {
                 add_button.classList.add('btn-secondary');
                 add_button.disabled = true;
                 add_button.textContent = artist.Status;
-            } else if (artist.Status === "Failed to Add") {
+            } else if (artist.Status === "Failed to Add" || artist.Status === "Invalid Path") {
                 card_body.classList.add('status-red');
+                add_button.classList.remove('btn-primary');
+                add_button.classList.add('btn-danger');
+                add_button.disabled = true;
+                add_button.textContent = artist.Status;
             } else {
                 card_body.classList.add('status-blue');
+                add_button.disabled = false
             }
-            add_button.disabled = (artist.Status === "Added" || artist.Status === "Already in Lidarr");
             return;
         }
     });
