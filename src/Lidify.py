@@ -1,4 +1,5 @@
 import json
+import time
 import logging
 import os
 import random
@@ -287,8 +288,17 @@ class DataHandler:
                 self.search_in_progress_flag = False
 
         elif self.new_found_artists_counter == 0:
-            self.lidify_logger.info("Search Exhausted - Try selecting more artists from existing Lidarr library")
-            socketio.emit("new_toast_msg", {"title": "Search Exhausted", "message": "Try selecting more artists from existing Lidarr library"})
+            try:
+                self.search_in_progress_flag = True
+                self.lidify_logger.info("Search Exhausted - Try selecting more artists from existing Lidarr library")
+                socketio.emit("new_toast_msg", {"title": "Search Exhausted", "message": "Try selecting more artists from existing Lidarr library"})
+                time.sleep(2)
+
+            except Exception as e:
+                self.lidify_logger.error(f"Search Exhausted Error: {str(e)}")
+
+            finally:
+                self.search_in_progress_flag = False
 
     def add_artists(self, raw_artist_name):
         try:
