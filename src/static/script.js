@@ -216,8 +216,9 @@ window.addEventListener('scroll', function () {
     }
 });
 
-window.addEventListener('touchmove', function () {
-    if (window.innerHeight + window.scrollY >= document.body.offsetHeight) {
+window.addEventListener('touchend', () => {
+    const { scrollHeight, scrollTop, clientHeight } = document.documentElement;
+    if (Math.abs(scrollHeight - clientHeight - scrollTop) < 1) {
         socket.emit('load_more_artists');
     }
 });
