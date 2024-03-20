@@ -216,6 +216,12 @@ window.addEventListener('scroll', function () {
     }
 });
 
+window.addEventListener('touchmove', function () {
+    if (window.innerHeight + window.scrollY >= document.body.offsetHeight) {
+        socket.emit('load_more_artists');
+    }
+});
+
 window.addEventListener('touchend', () => {
     const { scrollHeight, scrollTop, clientHeight } = document.documentElement;
     if (Math.abs(scrollHeight - clientHeight - scrollTop) < 1) {
