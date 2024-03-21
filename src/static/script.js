@@ -74,6 +74,9 @@ function append_artists(artists) {
         artist_col.querySelector('.add-to-lidarr-btn').addEventListener('click', function () {
             add_to_lidarr(artist.Name);
         });
+        artist_col.querySelector('.get-preview-btn').addEventListener('click', function () {
+            preview_req(artist.Name);
+        });
         artist_col.querySelector('.followers').textContent = artist.Followers;
         artist_col.querySelector('.popularity').textContent = artist.Popularity;
 
@@ -327,6 +330,73 @@ socket.on("new_toast_msg", function (data) {
 socket.on("disconnect", function () {
     show_toast("Connection Lost", "Please reconnect to continue.");
 });
+
+let preview_request_flag = false;
+function preview_req(artist_name) {
+    if (!preview_request_flag) {
+        preview_request_flag = true;
+        socket.emit("preview_req", encodeURIComponent(artist_name));
+        setTimeout(() => {
+            preview_request_flag = false;
+        }, 1000);
+    }
+}
+
+var preview_modal;
+function show_audio_player_modal(artist, song) {
+    preview_modal = new bootstrap.Modal(document.getElementById('audio-player-modal'));
+    preview_modal.show();
+    preview_modal._element.addEventListener('hidden.bs.modal', function () {
+        stop_audio();
+    });
+
+    var modal_title_label = document.getElementById('audio-player-modal-label');
+    if (modal_title_label) {
+        modal_title_label.textContent = `${artist} - ${song}`;
+    }
+}
+
+socket.on("spotify_preview", function (preview_info) {
+    if (typeof preview_info === 'string') {
+        show_toast("Error Retrieving Preview", preview_info);
+    } else {
+        var artist = preview_info.artist;
+        var song = preview_info.song;
+        show_audio_player_modal(artist, song);
+        play_audio(preview_info.preview_url);
+    }
+});
+
+function play_audio(audio_url) {
+    var audio_player = document.getElementById('audio-player');
+    audio_player.src = audio_url;
+    audio_player.play();
+}
+
+function stop_audio() {
+    var audio_player = document.getElementById('audio-player');
+    audio_player.pause();
+    audio_player.currentTime = 0;
+    audio_player.removeAttribute('src');
+    preview_modal = null;
+}
+
+socket.on("lastfm_preview", function (preview_info) {
+    if (typeof preview_info === 'string') {
+        show_toast("Error Retrieving Bio", preview_info);
+    }
+    else {
+        var artist_name = preview_info.artist_name;
+        var biography = preview_info.biography;
+        var modal_title = document.getElementById('bio-modal-title');
+        var modal_body = document.getElementById('modal-body');
+        modal_title.textContent = artist_name;
+        modal_body.textContent = biography;
+        var modal = new bootstrap.Modal(document.getElementById('bio-modal-modal'));
+        modal.show();
+    }
+});
+
 
 const theme_switch = document.getElementById('theme-switch');
 const saved_theme = localStorage.getItem('theme');
