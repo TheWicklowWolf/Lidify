@@ -6,7 +6,7 @@ import random
 import string
 import threading
 import urllib.parse
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 from flask_socketio import SocketIO
 import requests
 import spotipy
@@ -190,30 +190,31 @@ class DataHandler:
                 for artist_name in random_artists:
                     if self.stop_event.is_set():
                         break
-                    else:
-                        search_id = None
-                        results = sp.search(q=artist_name, type="artist")
-                        items = results.get("artists", {}).get("items", [])
-                        search_id = items[0]["id"]
-                        related_artists = sp.artist_related_artists(search_id)
-                        for artist in related_artists["artists"]:
-                            cleaned_artist = unidecode(artist["name"]).lower()
-                            if cleaned_artist not in self.cleaned_lidarr_items and not any(artist["name"] == item["Name"] for item in self.raw_new_artists):
-                                genres = ", ".join([genre.title() for genre in artist.get("genres", [])]) if artist.get("genres") else "Unknown Genre"
-                                followers = self.format_numbers(artist.get("followers", {}).get("total", 0))
-                                pop = artist.get("popularity", "0")
-                                img_link = artist.get("images")[0]["url"] if artist.get("images") else None
-                                exclusive_artist = {
-                                    "Name": artist["name"],
-                                    "Genre": genres,
-                                    "Status": "",
-                                    "Img_Link": img_link,
-                                    "Popularity": f"Popularity: {pop}/100",
-                                    "Followers": f"Followers: {followers}",
-                                }
-                                self.raw_new_artists.append(exclusive_artist)
-                                socketio.emit("more_artists_loaded", [exclusive_artist])
-                                self.new_found_artists_counter += 1
+                    search_id = None
+                    results = sp.search(q=artist_name, type="artist")
+                    items = results.get("artists", {}).get("items", [])
+                    search_id = items[0]["id"]
+                    related_artists = sp.artist_related_artists(search_id)
+                    for artist in related_artists["artists"]:
+                        if self.stop_event.is_set():
+                            break
+                        cleaned_artist = unidecode(artist["name"]).lower()
+                        if cleaned_artist not in self.cleaned_lidarr_items and not any(artist["name"] == item["Name"] for item in self.raw_new_artists):
+                            genres = ", ".join([genre.title() for genre in artist.get("genres", [])]) if artist.get("genres") else "Unknown Genre"
+                            followers = self.format_numbers(artist.get("followers", {}).get("total", 0))
+                            pop = artist.get("popularity", "0")
+                            img_link = artist.get("images")[0]["url"] if artist.get("images") else None
+                            exclusive_artist = {
+                                "Name": artist["name"],
+                                "Genre": genres,
+                                "Status": "",
+                                "Img_Link": img_link,
+                                "Popularity": f"Popularity: {pop}/100",
+                                "Followers": f"Followers: {followers}",
+                            }
+                            self.raw_new_artists.append(exclusive_artist)
+                            socketio.emit("more_artists_loaded", [exclusive_artist])
+                            self.new_found_artists_counter += 1
 
                 if self.new_found_artists_counter == 0:
                     self.lidify_logger.info("Search Exhausted - Try selecting more artists from existing Lidarr library")
@@ -238,42 +239,43 @@ class DataHandler:
                 for artist_name in random_artists:
                     if self.stop_event.is_set():
                         break
-                    else:
-                        search_id = None
-                        artist = lfm.get_artist(artist_name)
-                        related_artists = artist.get_similar()
-                        random_related_artists = random.sample(related_artists, min(10, len(related_artists)))
-                        for artist in random_related_artists:
-                            cleaned_artist = unidecode(artist.item.name).lower()
-                            if cleaned_artist not in self.cleaned_lidarr_items and not any(artist.item.name == item["Name"] for item in self.raw_new_artists):
-                                artist_obj = lfm.get_artist(artist.item.name)
-                                genres = ", ".join([tag.item.get_name().title() for tag in artist_obj.get_top_tags()[:5]]) or "Unknown Genre"
-                                listeners = artist_obj.get_listener_count() or 0
-                                play_count = artist_obj.get_playcount() or 0
-                                try:
-                                    img_link = None
-                                    endpoint = "https://api.deezer.com/search/artist"
-                                    params = {"q": artist.item.name}
-                                    response = requests.get(endpoint, params=params)
-                                    data = response.json()
-                                    if "data" in data and data["data"]:
-                                        artist_info = data["data"][0]
-                                        img_link = artist_info.get("picture_xl", artist_info.get("picture_large", artist_info.get("picture_medium", artist_info.get("picture", ""))))
+                    search_id = None
+                    artist = lfm.get_artist(artist_name)
+                    related_artists = artist.get_similar()
+                    random_related_artists = random.sample(related_artists, min(10, len(related_artists)))
+                    for artist in random_related_artists:
+                        if self.stop_event.is_set():
+                            break
+                        cleaned_artist = unidecode(artist.item.name).lower()
+                        if cleaned_artist not in self.cleaned_lidarr_items and not any(artist.item.name == item["Name"] for item in self.raw_new_artists):
+                            artist_obj = lfm.get_artist(artist.item.name)
+                            genres = ", ".join([tag.item.get_name().title() for tag in artist_obj.get_top_tags()[:5]]) or "Unknown Genre"
+                            listeners = artist_obj.get_listener_count() or 0
+                            play_count = artist_obj.get_playcount() or 0
+                            try:
+                                img_link = None
+                                endpoint = "https://api.deezer.com/search/artist"
+                                params = {"q": artist.item.name}
+                                response = requests.get(endpoint, params=params)
+                                data = response.json()
+                                if "data" in data and data["data"]:
+                                    artist_info = data["data"][0]
+                                    img_link = artist_info.get("picture_xl", artist_info.get("picture_large", artist_info.get("picture_medium", artist_info.get("picture", ""))))
 
-                                except Exception as e:
-                                    self.lidify_logger.error(f"Deezer Error: {str(e)}")
+                            except Exception as e:
+                                self.lidify_logger.error(f"Deezer Error: {str(e)}")
 
-                                exclusive_artist = {
-                                    "Name": artist.item.name,
-                                    "Genre": genres,
-                                    "Status": "",
-                                    "Img_Link": img_link if img_link else "https://via.placeholder.com/300x200",
-                                    "Popularity": f"Play Count: {self.format_numbers(play_count)}",
-                                    "Followers": f"Listeners: {self.format_numbers(listeners)}",
-                                }
-                                self.raw_new_artists.append(exclusive_artist)
-                                socketio.emit("more_artists_loaded", [exclusive_artist])
-                                self.new_found_artists_counter += 1
+                            exclusive_artist = {
+                                "Name": artist.item.name,
+                                "Genre": genres,
+                                "Status": "",
+                                "Img_Link": img_link if img_link else "https://via.placeholder.com/300x200",
+                                "Popularity": f"Play Count: {self.format_numbers(play_count)}",
+                                "Followers": f"Listeners: {self.format_numbers(listeners)}",
+                            }
+                            self.raw_new_artists.append(exclusive_artist)
+                            socketio.emit("more_artists_loaded", [exclusive_artist])
+                            self.new_found_artists_counter += 1
 
                 if self.new_found_artists_counter == 0:
                     self.lidify_logger.info("Search Exhausted - Try selecting more artists from existing Lidarr library")
@@ -349,8 +351,8 @@ class DataHandler:
 
             else:
                 status = "Failed to Add"
-                self.lidify_logger.info(f"No Matching Artist: '{artist_name}' found in MusicBrainz.")
-                socketio.emit("new_toast_msg", {"title": "Failed to add Artist", "message": f"No Matching Artist: '{artist_name}' found in MusicBrainz."})
+                self.lidify_logger.info(f"No Matching Artist for: '{artist_name}' in MusicBrainz.")
+                socketio.emit("new_toast_msg", {"title": "Failed to add Artist", "message": f"No Matching Artist for: '{artist_name}' in MusicBrainz."})
 
             for item in self.similar_artists:
                 if item["Name"] == artist_name:
@@ -443,6 +445,68 @@ class DataHandler:
         except Exception as e:
             self.lidify_logger.error(f"Error Saving Config: {str(e)}")
 
+    def preview(self, raw_artist_name):
+        artist_name = urllib.parse.unquote(raw_artist_name)
+        if self.mode == "Spotify":
+            try:
+                preview_info = None
+                sp = spotipy.Spotify(retries=0, auth_manager=SpotifyClientCredentials(client_id=self.spotify_client_id, client_secret=self.spotify_client_secret))
+                results = sp.search(q=artist_name, type="artist")
+                items = results.get("artists", {}).get("items", [])
+                if items:
+                    artist_id = items[0]["id"]
+                    top_tracks = sp.artist_top_tracks(artist_id)
+                    random.shuffle(top_tracks["tracks"])
+                    for track in top_tracks["tracks"]:
+                        if track.get("preview_url"):
+                            preview_info = {"artist": track["artists"][0]["name"], "song": track["name"], "preview_url": track["preview_url"]}
+                            break
+
+                    if not preview_info:
+                        preview_info = f"No preview tracks available for artist: {artist_name}"
+                        self.lidify_logger.error(preview_info)
+                else:
+                    preview_info = f"No Artist match for: {artist_name}"
+                    self.lidify_logger.error(preview_info)
+
+            except Exception as e:
+                preview_info = f"Error retrieving artist previews: {str(e)}"
+                self.lidify_logger.error(preview_info)
+
+            finally:
+                socketio.emit("spotify_preview", preview_info, room=request.sid)
+
+        elif self.mode == "LastFM":
+            try:
+                preview_info = {}
+                biography = None
+                lfm = pylast.LastFMNetwork(api_key=self.last_fm_api_key, api_secret=self.last_fm_api_secret)
+                search_results = lfm.search_for_artist(artist_name)
+                artists = search_results.get_next_page()
+                cleaned_artist_name = unidecode(artist_name).lower()
+                for artist_obj in artists:
+                    match_ratio = fuzz.ratio(cleaned_artist_name, artist_obj.name.lower())
+                    decoded_match_ratio = fuzz.ratio(unidecode(cleaned_artist_name), unidecode(artist_obj.name.lower()))
+                    if match_ratio > 90 or decoded_match_ratio > 90:
+                        biography = artist_obj.get_bio_content()
+                        preview_info["artist_name"] = artist_obj.name
+                        preview_info["biography"] = biography
+                        break
+                else:
+                    preview_info = f"No Artist match for: {artist_name}"
+                    self.lidify_logger.error(preview_info)
+
+                if biography is None:
+                    preview_info = f"No Biography available for: {artist_name}"
+                    self.lidify_logger.error(preview_info)
+
+            except Exception as e:
+                preview_info = {"error": f"Error retrieving artist bio: {str(e)}"}
+                self.lidify_logger.error(preview_info)
+
+            finally:
+                socketio.emit("lastfm_preview", preview_info, room=request.sid)
+
 
 app = Flask(__name__)
 app.secret_key = "secret_key"
@@ -519,6 +583,11 @@ def load_more_artists():
     thread = threading.Thread(target=data_handler.find_similar_artists, name="FindSimilar")
     thread.daemon = True
     thread.start()
+
+
+@socketio.on("preview_req")
+def preview(artist):
+    data_handler.preview(artist)
 
 
 if __name__ == "__main__":

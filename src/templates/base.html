@@ -25,6 +25,7 @@
 </head>
 
 <body class="bg-body-secondary">
+  <!-- Top Bar -->
   <div class="sticky-top">
     <div class="container-fluid bg-dark">
       <div class="top-bar d-flex justify-content-between align-items-center">
@@ -142,9 +143,9 @@
       <div id="lidarr-item-list" class="scrollable-content p-1 bg-light-subtle">
       </div>
     </div>
-
   </div>
 
+  <!-- Artits Cards -->
   <div class="container" id="artist-container">
     <div class="row" id="artist-row">
       <template id="artist-template">
@@ -160,6 +161,7 @@
                 <img src="" class="card-img-top" alt="">
                 <div class="artist-img-overlay"></div>
                 <button class="btn btn-primary add-to-lidarr-btn">Add to Lidarr</button>
+                <button class="btn btn-success get-preview-btn">Preview</button>
               </div>
               <div class="row">
                 <div class="col">
@@ -176,6 +178,44 @@
     </div>
   </div>
 
+  <!-- Audio Modal -->
+  <div class="modal fade" id="audio-player-modal" tabindex="-1" aria-labelledby="audio-player-modal-label"
+    aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="audio-player-modal-label">Preview Player</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="audio-player">
+            <audio class="w-100" id="audio-player" controls>
+              Your browser does not support the audio element.
+            </audio>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bio Modal -->
+  <div class="modal fade" id="bio-modal-modal" tabindex="-1" aria-labelledby="bio-modal-title" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="bio-modal-title">Modal title</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="modal-body">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
   <div class="toast-container position-fixed bottom-0 end-0 p-3">
     <div id="toast-template" class="toast d-none" role="alert" aria-live="assertive" aria-atomic="true"
       data-bs-delay="5000">
