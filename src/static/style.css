@@ -43,24 +43,26 @@ body {
     opacity: 1;
 }
 
-.add-to-lidarr-btn, .get-preview-btn {
+.button-container {
     position: absolute;
+    top: 50%;
     left: 50%;
-    transform: translateX(-50%);
+    transform: translate(-50%, -50%);
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.add-to-lidarr-btn,
+.get-preview-btn {
+    margin: 2px 0px;
     z-index: 1;
     opacity: 0;
+}
+
+.artist-img-container:hover .add-to-lidarr-btn,
+.artist-img-container:hover .get-preview-btn {
     transition: opacity 0.6s ease;
-}
-
-.add-to-lidarr-btn {
-    top: 42.5%; 
-}
-
-.get-preview-btn {
-    top: 57.5%;
-}
-
-.artist-img-container:hover .add-to-lidarr-btn, .artist-img-container:hover .get-preview-btn {
     opacity: 1;
 }
 

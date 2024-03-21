@@ -356,17 +356,6 @@ function show_audio_player_modal(artist, song) {
     }
 }
 
-socket.on("spotify_preview", function (preview_info) {
-    if (typeof preview_info === 'string') {
-        show_toast("Error Retrieving Preview", preview_info);
-    } else {
-        var artist = preview_info.artist;
-        var song = preview_info.song;
-        show_audio_player_modal(artist, song);
-        play_audio(preview_info.preview_url);
-    }
-});
-
 function play_audio(audio_url) {
     var audio_player = document.getElementById('audio-player');
     audio_player.src = audio_url;
@@ -380,6 +369,17 @@ function stop_audio() {
     audio_player.removeAttribute('src');
     preview_modal = null;
 }
+
+socket.on("spotify_preview", function (preview_info) {
+    if (typeof preview_info === 'string') {
+        show_toast("Error Retrieving Preview", preview_info);
+    } else {
+        var artist = preview_info.artist;
+        var song = preview_info.song;
+        show_audio_player_modal(artist, song);
+        play_audio(preview_info.preview_url);
+    }
+});
 
 socket.on("lastfm_preview", function (preview_info) {
     if (typeof preview_info === 'string') {
@@ -396,7 +396,6 @@ socket.on("lastfm_preview", function (preview_info) {
         modal.show();
     }
 });
-
 
 const theme_switch = document.getElementById('theme-switch');
 const saved_theme = localStorage.getItem('theme');

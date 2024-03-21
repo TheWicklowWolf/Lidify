@@ -453,18 +453,22 @@ class DataHandler:
                 sp = spotipy.Spotify(retries=0, auth_manager=SpotifyClientCredentials(client_id=self.spotify_client_id, client_secret=self.spotify_client_secret))
                 results = sp.search(q=artist_name, type="artist")
                 items = results.get("artists", {}).get("items", [])
-                if items:
-                    artist_id = items[0]["id"]
-                    top_tracks = sp.artist_top_tracks(artist_id)
-                    random.shuffle(top_tracks["tracks"])
-                    for track in top_tracks["tracks"]:
-                        if track.get("preview_url"):
-                            preview_info = {"artist": track["artists"][0]["name"], "song": track["name"], "preview_url": track["preview_url"]}
-                            break
-
-                    if not preview_info:
-                        preview_info = f"No preview tracks available for artist: {artist_name}"
-                        self.lidify_logger.error(preview_info)
+                cleaned_artist_name = unidecode(artist_name).lower()
+                for item in items:
+                    match_ratio = fuzz.ratio(cleaned_artist_name, item.get("name", "").lower())
+                    decoded_match_ratio = fuzz.ratio(unidecode(cleaned_artist_name), unidecode(item.get("name", "").lower()))
+                    if match_ratio > 90 or decoded_match_ratio > 90:
+                        artist_id = item.get("id", "")
+                        top_tracks = sp.artist_top_tracks(artist_id)
+                        random.shuffle(top_tracks["tracks"])
+                        for track in top_tracks["tracks"]:
+                            if track.get("preview_url"):
+                                preview_info = {"artist": track["artists"][0]["name"], "song": track["name"], "preview_url": track["preview_url"]}
+                                break
+                        else:
+                            preview_info = f"No preview tracks available for artist: {artist_name}"
+                            self.lidify_logger.error(preview_info)
+                        break
                 else:
                     preview_info = f"No Artist match for: {artist_name}"
                     self.lidify_logger.error(preview_info)
