@@ -61,7 +61,7 @@ function append_artists(artists) {
 
     artists.forEach(function (artist) {
         var clone = document.importNode(template.content, true);
-        var artist_col = clone.querySelector('.col-md-4');
+        var artist_col = clone.querySelector('#artist-column');
 
         artist_col.querySelector('.card-title').textContent = artist.Name;
         artist_col.querySelector('.genre').textContent = artist.Genre;
@@ -280,7 +280,7 @@ socket.on("lidarr_sidebar_update", (response) => {
 });
 
 socket.on("refresh_artist", (artist) => {
-    var artist_cards = document.querySelectorAll('.col-md-4.mb-3');
+    var artist_cards = document.querySelectorAll('#artist-column');
     artist_cards.forEach(function (card) {
         var card_body = card.querySelector('.card-body');
         var card_artist_name = card_body.querySelector('.card-title').textContent.trim();
@@ -317,7 +317,7 @@ socket.on('more_artists_loaded', function (data) {
 
 socket.on('clear', function () {
     var artist_row = document.getElementById('artist-row');
-    var artist_cards = artist_row.querySelectorAll('.col-md-4.mb-3');
+    var artist_cards = artist_row.querySelectorAll('#artist-column');
     artist_cards.forEach(function (card) {
         card.remove();
     });
