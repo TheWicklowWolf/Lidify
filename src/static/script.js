@@ -331,18 +331,19 @@ socket.on("disconnect", function () {
     show_toast("Connection Lost", "Please reconnect to continue.");
 });
 
+var preview_modal;
 let preview_request_flag = false;
+
 function preview_req(artist_name) {
     if (!preview_request_flag) {
         preview_request_flag = true;
         socket.emit("preview_req", encodeURIComponent(artist_name));
         setTimeout(() => {
             preview_request_flag = false;
-        }, 1000);
+        }, 1500);
     }
 }
 
-var preview_modal;
 function show_audio_player_modal(artist, song) {
     preview_modal = new bootstrap.Modal(document.getElementById('audio-player-modal'));
     preview_modal.show();
