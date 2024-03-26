@@ -103,8 +103,8 @@ class DataHandler:
     def connection(self):
         if self.similar_artists:
             if self.clients_connected_counter == 0:
-                if len(self.similar_artists) > 10:
-                    self.similar_artists = random.sample(self.similar_artists, 10)
+                if len(self.similar_artists) > 15:
+                    self.similar_artists = random.sample(self.similar_artists, 15)
                 else:
                     self.lidify_logger.info(f"Shuffling Artists")
                     random.shuffle(self.similar_artists)
