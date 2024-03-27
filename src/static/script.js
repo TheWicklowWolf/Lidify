@@ -21,12 +21,11 @@ const spotify_client_id = document.getElementById("spotify-client-id");
 const spotify_client_secret = document.getElementById("spotify-client-secret");
 
 var lidarr_items = [];
-var finder_items = [];
 var socket = io();
 
 function load_lidarr_data(response) {
     var all_checked = true;
-    var every_check_box = document.querySelectorAll('input[name="lidarr-item"]')
+    var every_check_box = document.querySelectorAll('input[name="lidarr-item"]');
     if (response.Running) {
         start_stop_button.classList.remove('btn-success');
         start_stop_button.classList.add('btn-warning');
@@ -80,16 +79,15 @@ function append_artists(artists) {
         artist_col.querySelector('.followers').textContent = artist.Followers;
         artist_col.querySelector('.popularity').textContent = artist.Popularity;
 
+        var add_button = artist_col.querySelector('.add-to-lidarr-btn');
         if (artist.Status === "Added" || artist.Status === "Already in Lidarr") {
             artist_col.querySelector('.card-body').classList.add('status-green');
-            var add_button = artist_col.querySelector('.add-to-lidarr-btn');
             add_button.classList.remove('btn-primary');
             add_button.classList.add('btn-secondary');
             add_button.disabled = true;
             add_button.textContent = artist.Status;
         } else if (artist.Status === "Failed to Add" || artist.Status === "Invalid Path") {
             artist_col.querySelector('.card-body').classList.add('status-red');
-            var add_button = artist_col.querySelector('.add-to-lidarr-btn');
             add_button.classList.remove('btn-primary');
             add_button.classList.add('btn-danger');
             add_button.disabled = true;
@@ -97,7 +95,6 @@ function append_artists(artists) {
         } else {
             artist_col.querySelector('.card-body').classList.add('status-blue');
         }
-
         artist_row.appendChild(clone);
     });
 }
@@ -118,7 +115,7 @@ function show_toast(header, message) {
 
     toast_template.querySelector('.toast-header strong').textContent = header;
     toast_template.querySelector('.toast-body').textContent = message;
-    toast_template.querySelector('.text-muted').textContent = new Date().toLocaleString();;
+    toast_template.querySelector('.text-muted').textContent = new Date().toLocaleString();
 
     toast_container.appendChild(toast_template);
 
@@ -304,7 +301,7 @@ socket.on("refresh_artist", (artist) => {
                 add_button.textContent = artist.Status;
             } else {
                 card_body.classList.add('status-blue');
-                add_button.disabled = false
+                add_button.disabled = false;
             }
             return;
         }
@@ -324,7 +321,7 @@ socket.on('clear', function () {
 });
 
 socket.on("new_toast_msg", function (data) {
-    show_toast(data.title, data.message)
+    show_toast(data.title, data.message);
 });
 
 socket.on("disconnect", function () {
