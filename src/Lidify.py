@@ -66,12 +66,18 @@ class DataHandler:
         self.root_folder_path = os.environ.get("root_folder_path", "")
         self.spotify_client_id = os.environ.get("spotify_client_id", "")
         self.spotify_client_secret = os.environ.get("spotify_client_secret", "")
-        self.fallback_to_top_result = os.environ.get("fallback_to_top_result", "")
-        self.lidarr_api_timeout = os.environ.get("lidarr_api_timeout", "")
-        self.quality_profile_id = os.environ.get("quality_profile_id", "")
-        self.metadata_profile_id = os.environ.get("metadata_profile_id", "")
-        self.search_for_missing_albums = os.environ.get("search_for_missing_albums", "")
-        self.dry_run_adding_to_lidarr = os.environ.get("dry_run_adding_to_lidarr", "")
+        fallback_to_top_result = os.environ.get("fallback_to_top_result", "")
+        self.fallback_to_top_result = fallback_to_top_result.lower() == "true" if fallback_to_top_result != "" else ""
+        lidarr_api_timeout = os.environ.get("lidarr_api_timeout", "")
+        self.lidarr_api_timeout = float(lidarr_api_timeout) if lidarr_api_timeout else ""
+        quality_profile_id = os.environ.get("quality_profile_id", "")
+        self.quality_profile_id = int(quality_profile_id) if quality_profile_id else ""
+        metadata_profile_id = os.environ.get("metadata_profile_id", "")
+        self.metadata_profile_id = int(metadata_profile_id) if metadata_profile_id else ""
+        search_for_missing_albums = os.environ.get("search_for_missing_albums", "")
+        self.search_for_missing_albums = search_for_missing_albums.lower() == "true" if search_for_missing_albums != "" else ""
+        dry_run_adding_to_lidarr = os.environ.get("dry_run_adding_to_lidarr", "")
+        self.dry_run_adding_to_lidarr = dry_run_adding_to_lidarr.lower() == "true" if dry_run_adding_to_lidarr != "" else ""
         self.app_name = os.environ.get("app_name", "")
         self.app_rev = os.environ.get("app_rev", "")
         self.app_url = os.environ.get("app_url", "")
