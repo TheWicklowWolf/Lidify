@@ -23,8 +23,19 @@ const spotify_client_secret = document.getElementById("spotify-client-secret");
 var lidarr_items = [];
 var socket = io();
 
-function load_lidarr_data(response) {
+function check_if_all_selected() {
+    var checkboxes = document.querySelectorAll('input[name="lidarr-item"]');
     var all_checked = true;
+    for (var i = 0; i < checkboxes.length; i++) {
+        if (!checkboxes[i].checked) {
+            all_checked = false;
+            break;
+        }
+    }
+    lidarr_select_all_checkbox.checked = all_checked;
+}
+
+function load_lidarr_data(response) {
     var every_check_box = document.querySelectorAll('input[name="lidarr-item"]');
     if (response.Running) {
         start_stop_button.classList.remove('btn-success');
@@ -32,9 +43,6 @@ function load_lidarr_data(response) {
         start_stop_button.textContent = "Stop";
         every_check_box.forEach(item => {
             item.disabled = true;
-            if (!item.checked) {
-                all_checked = false;
-            }
         });
         lidarr_select_all_checkbox.disabled = true;
         lidarr_get_artists_button.disabled = true;
@@ -44,14 +52,11 @@ function load_lidarr_data(response) {
         start_stop_button.textContent = "Start";
         every_check_box.forEach(item => {
             item.disabled = false;
-            if (!item.checked) {
-                all_checked = false;
-            }
         });
         lidarr_select_all_checkbox.disabled = false;
         lidarr_get_artists_button.disabled = false;
     }
-    lidarr_select_all_checkbox.checked = all_checked;
+    check_if_all_selected();
 }
 
 function append_artists(artists) {
@@ -132,10 +137,10 @@ return_to_top.addEventListener("click", function () {
 });
 
 lidarr_select_all_checkbox.addEventListener("change", function () {
-    var isChecked = this.checked;
+    var is_checked = this.checked;
     var checkboxes = document.querySelectorAll('input[name="lidarr-item"]');
     checkboxes.forEach(function (checkbox) {
-        checkbox.checked = isChecked;
+        checkbox.checked = is_checked;
     });
 });
 
@@ -231,7 +236,6 @@ window.addEventListener('touchend', () => {
 
 socket.on("lidarr_sidebar_update", (response) => {
     if (response.Status == "Success") {
-        lidarr_spinner.classList.add('d-none');
         lidarr_status.textContent = "Lidarr List Retrieved";
         lidarr_items = response.Data;
         lidarr_item_list.innerHTML = '';
@@ -260,7 +264,7 @@ socket.on("lidarr_sidebar_update", (response) => {
             label.textContent = item.name;
 
             input.addEventListener("change", function () {
-                lidarr_select_all_checkbox.checked = false;
+                check_if_all_selected();
             });
 
             div.appendChild(input);
@@ -273,6 +277,7 @@ socket.on("lidarr_sidebar_update", (response) => {
         lidarr_status.textContent = response.Code;
     }
     lidarr_get_artists_button.disabled = false;
+    lidarr_spinner.classList.add('d-none');
     load_lidarr_data(response);
 });
 
