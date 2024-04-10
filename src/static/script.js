@@ -348,9 +348,14 @@ function preview_req(artist_name) {
 
 function show_audio_player_modal(artist, song) {
     preview_modal = new bootstrap.Modal(document.getElementById('audio-player-modal'));
+    const scrollbar_width = window.innerWidth - document.documentElement.clientWidth;
+    document.body.style.overflow = 'hidden';
+    document.body.style.paddingRight = `${scrollbar_width}px`;
     preview_modal.show();
     preview_modal._element.addEventListener('hidden.bs.modal', function () {
         stop_audio();
+        document.body.style.overflow = 'auto';
+        document.body.style.paddingRight = '0';
     });
 
     var modal_title_label = document.getElementById('audio-player-modal-label');
