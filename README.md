@@ -12,7 +12,6 @@ Web GUI for finding similar artists to selected Lidarr artists.
 ## Run using docker-compose
 
 ```yaml
-version: "2.1"
 services:
   lidify:
     image: thewicklowwolf/lidify:latest
