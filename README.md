@@ -46,7 +46,7 @@ Certain values can be set via environment variables:
 * __last_fm_api_secret__: The API secret for LastFM. Defaults to ``.
 * __mode__: Mode for discovery (Spotify or LastFM). Defaults to `Spotify`.
 * __auto_start__: Whether to run automatically at startup. Defaults to `False`.
-* __auto_start_delay__: Delay duration fo Auto Start in Seconds (if enabled). Defaults to `60`.
+* __auto_start_delay__: Delay duration for Auto Start in Seconds (if enabled). Defaults to `60`.
 
 ---
 
