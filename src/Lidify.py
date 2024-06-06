@@ -37,6 +37,14 @@ class DataHandler:
         if not os.path.exists(self.config_folder):
             os.makedirs(self.config_folder)
         self.load_environ_or_config_settings()
+        if self.auto_start:
+            try:
+                auto_start_thread = threading.Timer(self.auto_start_delay, self.automated_startup)
+                auto_start_thread.daemon = True
+                auto_start_thread.start()
+
+            except Exception as e:
+                self.lidify_logger.error(f"Auto Start Error: {str(e)}")
 
     def load_environ_or_config_settings(self):
         # Defaults
@@ -111,15 +119,6 @@ class DataHandler:
 
         # Save config.
         self.save_config_to_file()
-
-        if self.auto_start:
-            try:
-                auto_start_thread = threading.Timer(self.auto_start_delay, self.automated_startup)
-                auto_start_thread.daemon = True
-                auto_start_thread.start()
-
-            except Exception as e:
-                self.lidify_logger.error(f"Auto Start Error: {str(e)}")
 
     def automated_startup(self):
         self.get_artists_from_lidarr(checked=True)
