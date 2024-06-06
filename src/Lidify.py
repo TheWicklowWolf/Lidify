@@ -54,7 +54,7 @@ class DataHandler:
             "dry_run_adding_to_lidarr": False,
             "app_name": "Lidify",
             "app_rev": "0.10",
-            "app_url": "http://Lidify.com",
+            "app_url": "http://" + "".join(random.choices(string.ascii_lowercase, k=10)) + ".com",
             "last_fm_api_key": "",
             "last_fm_api_secret": "",
             "mode": "Spotify",
