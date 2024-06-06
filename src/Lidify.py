@@ -53,11 +53,13 @@ class DataHandler:
             "search_for_missing_albums": False,
             "dry_run_adding_to_lidarr": False,
             "app_name": "Lidify",
-            "app_rev": "0.04",
-            "app_url": "http://" + "".join(random.choices(string.ascii_lowercase, k=10)) + ".com",
+            "app_rev": "0.10",
+            "app_url": "http://Lidify.com",
             "last_fm_api_key": "",
             "last_fm_api_secret": "",
             "mode": "Spotify",
+            "auto_start": False,
+            "auto_start_delay": 60,
         }
 
         # Load settings from environmental variables (which take precedence) over the configuration file.
@@ -84,6 +86,10 @@ class DataHandler:
         self.last_fm_api_key = os.environ.get("last_fm_api_key", "")
         self.last_fm_api_secret = os.environ.get("last_fm_api_secret", "")
         self.mode = os.environ.get("mode", "")
+        auto_start = os.environ.get("auto_start", "")
+        self.auto_start = auto_start.lower() == "true" if auto_start != "" else ""
+        auto_start_delay = os.environ.get("auto_start_delay", "")
+        self.auto_start_delay = float(auto_start_delay) if auto_start_delay else ""
 
         # Load variables from the configuration file if not set by environmental variables.
         try:
@@ -105,6 +111,20 @@ class DataHandler:
 
         # Save config.
         self.save_config_to_file()
+
+        if self.auto_start:
+            try:
+                auto_start_thread = threading.Timer(self.auto_start_delay, self.automated_startup)
+                auto_start_thread.daemon = True
+                auto_start_thread.start()
+
+            except Exception as e:
+                self.lidify_logger.error(f"Auto Start Error: {str(e)}")
+
+    def automated_startup(self):
+        self.get_artists_from_lidarr(checked=True)
+        artists = [x["name"] for x in self.lidarr_items]
+        self.start(artists)
 
     def connection(self):
         if self.similar_artists:
@@ -153,7 +173,7 @@ class DataHandler:
         else:
             self.find_similar_artists()
 
-    def get_artists_from_lidarr(self):
+    def get_artists_from_lidarr(self, checked=False):
         try:
             self.lidify_logger.info(f"Getting Artists from Lidarr")
             self.lidarr_items = []
@@ -163,7 +183,7 @@ class DataHandler:
 
             if response.status_code == 200:
                 self.full_lidarr_artist_list = response.json()
-                self.lidarr_items = [{"name": unidecode(artist["artistName"], replace_str=" "), "checked": False} for artist in self.full_lidarr_artist_list]
+                self.lidarr_items = [{"name": unidecode(artist["artistName"], replace_str=" "), "checked": checked} for artist in self.full_lidarr_artist_list]
                 self.lidarr_items.sort(key=lambda x: x["name"].lower())
                 self.cleaned_lidarr_items = [item["name"].lower() for item in self.lidarr_items]
                 status = "Success"
@@ -443,6 +463,8 @@ class DataHandler:
                         "last_fm_api_key": self.last_fm_api_key,
                         "last_fm_api_secret": self.last_fm_api_secret,
                         "mode": self.mode,
+                        "auto_start": self.auto_start,
+                        "auto_start_delay": self.auto_start_delay,
                     },
                     json_file,
                     indent=4,
