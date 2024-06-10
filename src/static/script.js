@@ -318,11 +318,7 @@ socket.on('more_artists_loaded', function (data) {
 });
 
 socket.on('clear', function () {
-    var artist_row = document.getElementById('artist-row');
-    var artist_cards = artist_row.querySelectorAll('#artist-column');
-    artist_cards.forEach(function (card) {
-        card.remove();
-    });
+    clear_all();
 });
 
 socket.on("new_toast_msg", function (data) {
@@ -331,7 +327,16 @@ socket.on("new_toast_msg", function (data) {
 
 socket.on("disconnect", function () {
     show_toast("Connection Lost", "Please reconnect to continue.");
+    clear_all();
 });
+
+function clear_all() {
+    var artist_row = document.getElementById('artist-row');
+    var artist_cards = artist_row.querySelectorAll('#artist-column');
+    artist_cards.forEach(function (card) {
+        card.remove();
+    });
+}
 
 var preview_modal;
 let preview_request_flag = false;
