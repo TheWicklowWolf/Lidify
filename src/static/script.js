@@ -399,14 +399,24 @@ socket.on("lastfm_preview", function (preview_info) {
         show_toast("Error Retrieving Bio", preview_info);
     }
     else {
+        const scrollbar_width = window.innerWidth - document.documentElement.clientWidth;
+        document.body.style.overflow = 'hidden';
+        document.body.style.paddingRight = `${scrollbar_width}px`;
+
         var artist_name = preview_info.artist_name;
         var biography = preview_info.biography;
         var modal_title = document.getElementById('bio-modal-title');
         var modal_body = document.getElementById('modal-body');
         modal_title.textContent = artist_name;
         modal_body.textContent = biography;
-        var modal = new bootstrap.Modal(document.getElementById('bio-modal-modal'));
-        modal.show();
+
+        var lastfm_modal = new bootstrap.Modal(document.getElementById('bio-modal-modal'));
+        lastfm_modal.show();
+
+        lastfm_modal._element.addEventListener('hidden.bs.modal', function () {
+            document.body.style.overflow = 'auto';
+            document.body.style.paddingRight = '0';
+        });
     }
 });
 
