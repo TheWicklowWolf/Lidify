@@ -3,23 +3,84 @@ name: ci
 on:
   push:
     branches:
-      - "main"
+      - main
+    paths-ignore:
+      - '**/*.md'
 
 jobs:
-  build:
+  bump-version-and-create-release-tag:
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+    outputs:
+      new_version: ${{ steps.increment_version.outputs.new_version }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Fetch and list tags
+        run: |
+          git fetch --tags
+          echo "Tags:"
+          git tag --list
+
+      - name: Get current version
+        id: get_version
+        run: |
+          VERSION=$(git tag --list | sed 's/^v//' | awk -F. '{ if (NF == 2) printf("%s.0.%s\n", $1, $2); else print $0 }' | sort -V | tail -n 1 | sed 's/^/v/')
+          echo "CURRENT_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Current version: $VERSION"
+
+      - name: Increment version
+        id: increment_version
+        run: |
+          NEW_VERSION=$(echo ${{ env.CURRENT_VERSION }} | awk -F. '{printf("%d.%d.%d", $1, $2, $3+1)}')
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version: $NEW_VERSION"
+
+      - name: Create new Git tag
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git tag -a v${{ env.NEW_VERSION }} -m "Release version ${{ env.NEW_VERSION }}"
+          git push origin --tags
+
+      - name: Create release
+        run: |
+          gh release create "v${{ env.NEW_VERSION }}" \
+              --repo="${GITHUB_REPOSITORY}" \
+              --title="v${{ env.NEW_VERSION }}" \
+              --generate-notes
+
+  build-docker-image:
+    runs-on: ubuntu-latest
+    needs: bump-version-and-create-release-tag
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Convert repository name to lowercase
+        id: lowercase_repo
+        run: |
+            REPO_NAME=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')
+            echo "REPO_NAME=$REPO_NAME" >> $GITHUB_ENV
+
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
@@ -27,4 +88,6 @@ jobs:
           platforms: linux/amd64,linux/arm64
           file: ./Dockerfile
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/lidify:latest
+          tags: |
+            ${{ env.REPO_NAME }}:${{ needs.bump-version-and-create-release-tag.outputs.new_version }}
+            ${{ env.REPO_NAME }}:latest
