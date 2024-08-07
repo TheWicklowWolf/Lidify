@@ -88,6 +88,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           file: ./Dockerfile
           push: true
+          build-args: |
+            RELEASE_VERSION=${{ needs.bump-version-and-create-release-tag.outputs.new_version }}
           tags: |
             ${{ env.REPO_NAME }}:${{ needs.bump-version-and-create-release-tag.outputs.new_version }}
             ${{ env.REPO_NAME }}:latest
