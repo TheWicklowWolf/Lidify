@@ -6,8 +6,7 @@
   <img src="/src/static/lidify.png" alt="image">
 </p>
 
-Web GUI for finding similar artists to selected Lidarr artists.
-
+Music discovery tool that provides recommendations based on selected Lidarr artists. 
 
 ## Run using docker-compose
 
@@ -28,6 +27,8 @@ services:
 
 Certain values can be set via environment variables:
 
+* __PUID__: The user ID to run the app with. Defaults to `1000`. 
+* __PGID__: The group ID to run the app with. Defaults to `1000`.
 * __lidarr_address__: The URL for Lidarr. Defaults to `http://192.168.1.2:8686`.
 * __lidarr_api_key__: The API key for Lidarr. Defaults to ``.
 * __root_folder_path__: The root folder path for music. Defaults to `/data/media/music/`.
