@@ -408,7 +408,7 @@ socket.on("lastfm_preview", function (preview_info) {
         var modal_title = document.getElementById('bio-modal-title');
         var modal_body = document.getElementById('modal-body');
         modal_title.textContent = artist_name;
-        modal_body.textContent = biography;
+        modal_body.innerHTML = DOMPurify.sanitize(biography);
 
         var lastfm_modal = new bootstrap.Modal(document.getElementById('bio-modal-modal'));
         lastfm_modal.show();
