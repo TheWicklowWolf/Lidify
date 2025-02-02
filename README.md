@@ -7,6 +7,8 @@
 </p>
 
 Music discovery tool that provides recommendations based on selected Lidarr artists. 
+As of November 2024 changes to the spotify API prevent its use in this application. It will only work with Last.FM, see https://github.com/TheWicklowWolf/Lidify/issues/24 
+Create a Last.FM API account by logging in to your last.fm account and going to https://www.last.fm/api/account/create and then copying the API key and secrete it gives you into the docker compose.
 
 ## Run using docker-compose
 
@@ -21,6 +23,10 @@ services:
     ports:
       - 5000:5000
     restart: unless-stopped
+    environment:
+      - last_fm_api_key=<insert>
+      - last_fm_api_secret=<insert>
+      - mode=LastFM
 ```
 
 ## Configuration via environment variables
@@ -29,11 +35,11 @@ Certain values can be set via environment variables:
 
 * __PUID__: The user ID to run the app with. Defaults to `1000`. 
 * __PGID__: The group ID to run the app with. Defaults to `1000`.
-* __lidarr_address__: The URL for Lidarr. Defaults to `http://192.168.1.2:8686`.
-* __lidarr_api_key__: The API key for Lidarr. Defaults to ``.
-* __root_folder_path__: The root folder path for music. Defaults to `/data/media/music/`.
-* __spotify_client_id__: The Client ID for Spotify. Defaults to ``.
-* __spotify_client_secret__: The Client Secret for Spotify. Defaults to ``.
+* __lidarr_address__: The URL for Lidarr. Defaults to `http://192.168.1.2:8686`. Can be configured from the application as well.
+* __lidarr_api_key__: The API key for Lidarr. Defaults to ``. Can be configured from the application as well.
+* __root_folder_path__: The root folder path for music. Defaults to `/data/media/music/`. Can be configured from the application as well.
+* __spotify_client_id__: The Client ID for Spotify. Defaults to ``. Can be configured from the application as well, but see https://github.com/TheWicklowWolf/Lidify/issues/24 .
+* __spotify_client_secret__: The Client Secret for Spotify. Defaults to ``. Can be configured from the application as well, but see https://github.com/TheWicklowWolf/Lidify/issues/24 .
 * __fallback_to_top_result__: Whether to use the top result if no match is found. Defaults to `False`.
 * __lidarr_api_timeout__: Timeout duration for Lidarr API calls. Defaults to `120`.
 * __quality_profile_id__: Quality profile ID in Lidarr. Defaults to `1`.
