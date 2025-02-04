@@ -6,9 +6,11 @@
   <img src="/src/static/lidify.png" alt="image">
 </p>
 
-Music discovery tool that provides recommendations based on selected Lidarr artists. 
-As of November 2024 changes to the spotify API prevent its use in this application. It will only work with Last.FM, see https://github.com/TheWicklowWolf/Lidify/issues/24 
-Create a Last.FM API account by logging in to your last.fm account and going to https://www.last.fm/api/account/create and then copying the API key and secrete it gives you into the docker compose.
+Music discovery tool that provides recommendations based on selected Lidarr artists.  
+
+### Note:
+As of November 2024 changes to the Spotify API prevent its use in this application. It will only work with Last.FM, see https://github.com/TheWicklowWolf/Lidify/issues/24 for details.  
+To enable Last.fm integration, log in to your Last.fm account and create an API account at https://www.last.fm/api/account/create. Then, copy the provided API key and secret into the docker-compose configuration.
 
 ## Run using docker-compose
 
