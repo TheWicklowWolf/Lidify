@@ -272,8 +272,16 @@ class DataHandler:
                     if self.stop_event.is_set():
                         break
                     search_id = None
-                    chosen_artist = lfm.get_artist(artist_name)
-                    related_artists = chosen_artist.get_similar()
+
+                    try:
+                        chosen_artist = lfm.get_artist(artist_name)
+                        related_artists = chosen_artist.get_similar()
+
+                    except Exception as e:
+                        self.lidify_logger.error(f"Error with LastFM on artist - '{artist_name}': {str(e)}")
+                        self.lidify_logger.info("Trying next artist...")
+                        continue
+
                     random_related_artists = random.sample(related_artists, min(30, len(related_artists)))
                     for related_artist in random_related_artists:
                         if self.stop_event.is_set():
