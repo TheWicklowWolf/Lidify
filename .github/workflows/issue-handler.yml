@@ -1,0 +1,59 @@
+name: Close Non-Bug Issues
+
+on:
+  workflow_dispatch:
+  
+  issues:
+    types: [opened]
+
+jobs:
+  close-issue-if-not-bug:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+    steps:
+      - name: Check if the issue contains "bug"
+        id: check_bug
+        env:
+          BODY: ${{ github.event.issue.body }}
+          TITLE: ${{ github.event.issue.title }}
+        run: |
+          # Check if the title or body contains "bug"
+          if echo "$TITLE" | grep -qi 'bug' || echo "$BODY" | grep -qi 'bug'; then
+            echo "This is a bug-related issue. Keeping it open."
+            echo "is_bug=true" >> $GITHUB_ENV
+          else
+            echo "This is not a bug-related issue. Closing it."
+            echo "is_bug=false" >> $GITHUB_ENV
+          fi
+
+      - name: Close issue and add comment if not bug
+        if: env.is_bug == 'false'
+        env:
+         COMMENT: |
+            ### Issue
+            - **Feature Request:**  
+            If this is a feature request, unfortunately no new features are planned at present. The goal of this project is to keep the feature set as minimal as possible. Consider forking this repository and creating your own image to suit your requirements.  
+              **PRs** are open, but only for essential changes/features.
+
+            - **Specific Issues:**  
+            If you're experiencing an issue, please check through previous issues first, as it may have already been addressed.  
+            If it hasn’t been covered, you'll need to clone this repository and run it locally to investigate the issue further. There are plenty of resources available to help you get familiar with Docker and the code used here, so please ensure you explore those fully.
+            Please also note that this project may not work across all setups and systems.
+
+            - **Genuine Bugs:**  
+            If you believe you've found a genuine bug that affects the main functionality, please raise an issue with detailed logs and a specific bug report. It would also be greatly appreciated if you can suggest a possible solution.
+
+            Thanks, and best of luck!
+
+            ---
+
+            It can be frustrating when an **issue** gets closed automatically, but this process helps keep track of actionable bugs.  
+            **Feature requests** are only considered if the requester contributes code or takes significant steps toward implementing the feature themselves. Without this commitment or partial coding effort, the request will not be considered. Thank you for your understanding!
+
+            ---
+
+            **NOTE:** THIS IS AN AUTOMATICALLY GENERATED COMMENT.
+            
+        run: |
+          gh issue close ${{ github.event.issue.number }} --comment "$COMMENT" --repo ${{ github.repository }}
