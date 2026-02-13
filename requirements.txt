@@ -1,5 +1,5 @@
 gunicorn
-gevent
+gevent<25.0.0
 gevent-websocket
 flask
 flask_socketio
@@ -9,3 +9,4 @@ musicbrainzngs
 thefuzz
 Unidecode
 pylast
+
