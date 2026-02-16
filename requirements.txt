@@ -1,5 +1,5 @@
 gunicorn
-gevent<25.0.0
+gevent<26.0.0
 gevent-websocket
 flask
 flask_socketio
