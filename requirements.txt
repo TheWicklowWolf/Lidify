@@ -1,7 +1,7 @@
 gunicorn
 gevent<25.0.0
 gevent-websocket
-flask
+flask==3.1.2
 flask_socketio
 requests
 spotipy
@@ -9,4 +9,5 @@ musicbrainzngs
 thefuzz
 Unidecode
 pylast
+
 
