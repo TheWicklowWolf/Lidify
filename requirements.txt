@@ -2,7 +2,7 @@ gunicorn==25.1.0
 gevent==24.11.1
 gevent-websocket==0.10.1
 flask==3.1.2
-flask_socketio==5.6.0
+flask_socketio==5.6.1
 requests==2.32.5
 spotipy==2.25.2
 musicbrainzngs==0.7.1
