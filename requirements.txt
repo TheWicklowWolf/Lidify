@@ -4,7 +4,7 @@ gevent-websocket==0.10.1
 flask==3.1.2
 flask_socketio==5.6.0
 requests==2.32.5
-spotipy==2.25.2
+spotipy==2.26.0
 musicbrainzngs==0.7.1
 thefuzz==0.22.1
 Unidecode==1.4.0
