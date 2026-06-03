@@ -602,6 +602,51 @@ def home():
     return render_template("base.html")
 
 
+@app.route("/healthz")
+def healthz():
+    """Lightweight liveness/readiness probe.
+
+    Returns 200 when the Flask process is up and a Last.fm key is
+    configured. Returns 503 when the Last.fm key is missing, so an
+    orchestrator (or a curl-driven dashboard) can distinguish "process
+    is up but misconfigured" from "process is up and ready".
+    """
+    if not data_handler.last_fm_api_key or not data_handler.last_fm_api_secret:
+        return {"status": "unconfigured", "reason": "last_fm_api_key/secret missing"}, 503
+    return {"status": "ok"}, 200
+
+
+@app.route("/readyz")
+def readyz():
+    """Readiness probe: pings Last.fm to confirm outbound network works.
+
+    Always returns 200 on process liveness; the body reports whether the
+    Last.fm call succeeded. Use /healthz for a hard pass/fail signal.
+    """
+    lastfm_ok = True
+    lastfm_error = None
+    if data_handler.last_fm_api_key and data_handler.last_fm_api_secret:
+        try:
+            pylast.LastFMNetwork(
+                api_key=data_handler.last_fm_api_key,
+                api_secret=data_handler.last_fm_api_secret,
+            ).get_home_recent_tracks(limit=1)
+        except Exception as e:
+            lastfm_ok = False
+            lastfm_error = type(e).__name__
+    else:
+        lastfm_ok = False
+        lastfm_error = "missing credentials"
+    status_code = 200 if lastfm_ok else 503
+    return (
+        {
+            "status": "ready" if lastfm_ok else "not_ready",
+            "lastfm": {"ok": lastfm_ok, "error": lastfm_error},
+        },
+        status_code,
+    )
+
+
 @socketio.on("side_bar_opened")
 def side_bar_opened():
     if data_handler.lidarr_items:
