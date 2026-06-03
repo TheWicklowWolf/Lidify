@@ -86,11 +86,11 @@ class DataHandler:
         fallback_to_top_result = os.environ.get("fallback_to_top_result", "")
         self.fallback_to_top_result = fallback_to_top_result.lower() == "true" if fallback_to_top_result != "" else ""
         lidarr_api_timeout = os.environ.get("lidarr_api_timeout", "")
-        self.lidarr_api_timeout = float(lidarr_api_timeout) if lidarr_api_timeout else ""
+        self.lidarr_api_timeout = self._parse_float_env("lidarr_api_timeout", lidarr_api_timeout)
         quality_profile_id = os.environ.get("quality_profile_id", "")
-        self.quality_profile_id = int(quality_profile_id) if quality_profile_id else ""
+        self.quality_profile_id = self._parse_int_env("quality_profile_id", quality_profile_id)
         metadata_profile_id = os.environ.get("metadata_profile_id", "")
-        self.metadata_profile_id = int(metadata_profile_id) if metadata_profile_id else ""
+        self.metadata_profile_id = self._parse_int_env("metadata_profile_id", metadata_profile_id)
         search_for_missing_albums = os.environ.get("search_for_missing_albums", "")
         self.search_for_missing_albums = search_for_missing_albums.lower() == "true" if search_for_missing_albums != "" else ""
         dry_run_adding_to_lidarr = os.environ.get("dry_run_adding_to_lidarr", "")
@@ -104,7 +104,42 @@ class DataHandler:
         auto_start = os.environ.get("auto_start", "")
         self.auto_start = auto_start.lower() == "true" if auto_start != "" else ""
         auto_start_delay = os.environ.get("auto_start_delay", "")
-        self.auto_start_delay = float(auto_start_delay) if auto_start_delay else ""
+        self.auto_start_delay = self._parse_float_env("auto_start_delay", auto_start_delay)
+
+        # Warn early when a value is set for an active mode but is incomplete.
+        if self.mode == "LastFM" and (not self.last_fm_api_key or not self.last_fm_api_secret):
+            self.lidify_logger.warning(
+                "mode=LastFM is set but last_fm_api_key or last_fm_api_secret is empty; "
+                "similar-artist lookups will fail at runtime."
+            )
+        if self.lidarr_address and not (self.lidarr_address.startswith("http://") or self.lidarr_address.startswith("https://")):
+            self.lidify_logger.warning(
+                f"lidarr_address={self.lidarr_address!r} is missing a scheme; prepend http:// or https://."
+            )
+
+    @staticmethod
+    def _parse_int_env(name, raw):
+        if not raw:
+            return ""
+        try:
+            return int(raw)
+        except ValueError:
+            logging.getLogger().warning(
+                f"Env var {name}={raw!r} is not a valid integer; falling back to default."
+            )
+            return ""
+
+    @staticmethod
+    def _parse_float_env(name, raw):
+        if not raw:
+            return ""
+        try:
+            return float(raw)
+        except ValueError:
+            logging.getLogger().warning(
+                f"Env var {name}={raw!r} is not a valid number; falling back to default."
+            )
+            return ""
 
         # Load variables from the configuration file if not set by environmental variables.
         try:
