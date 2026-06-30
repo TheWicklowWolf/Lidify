@@ -8,4 +8,4 @@ spotipy==2.25.2
 musicbrainzngs==0.7.1
 thefuzz==0.22.1
 Unidecode==1.4.0
-pylast==7.0.2
+pylast==7.1.0
